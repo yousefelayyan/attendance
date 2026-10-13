@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#173b57">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="الحضور">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-512.png">
+<title>سجل الحضور والغياب</title>
+<style>
+:root{
+  --navy:#173b57;--navy2:#24557b;--bg:#f3f6f9;--card:#fff;--ink:#16293a;--muted:#5d6e7c;--line:#d9e1e8;--soft:#eef3f7;
+  --p:#16794d;--p-bg:#e2f5ea;--a:#b42318;--a-bg:#fde7e5;--l:#9a5a05;--l-bg:#fff1d6;--today:#fff8e6;--online:#5b3fa3;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Arabic","Segoe UI",Tahoma,Arial,sans-serif;font-size:16px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;border-radius:10px;padding:10px 14px;background:var(--soft);color:var(--navy);font-weight:600;min-height:44px}
+button.primary{background:var(--navy);color:#fff}
+button.ghost{background:transparent;border:1px solid var(--line)}
+button:disabled{opacity:.45;cursor:default}
+input,select,textarea{border:1px solid #c9d4de;border-radius:9px;padding:10px;background:#fff;min-height:44px;width:100%}
+label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+.hidden{display:none!important}
+header.top{background:var(--navy);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 0;position:sticky;top:0;z-index:20}
+.top h1{margin:0;font-size:20px}
+.top .sub{font-size:13px;opacity:.85;margin-top:2px}
+.toprow{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.saved{font-size:12px;background:#ffffff1f;border-radius:20px;padding:5px 10px;white-space:nowrap}
+nav.tabs{display:flex;gap:4px;margin-top:10px;overflow-x:auto}
+nav.tabs button{background:transparent;color:#d6e3ee;border-radius:10px 10px 0 0;padding:10px 16px;white-space:nowrap}
+nav.tabs button.active{background:var(--bg);color:var(--navy)}
+main{max-width:1250px;margin:auto;padding:14px 14px calc(30px + env(safe-area-inset-bottom))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.row>.f{flex:1;min-width:150px}
+.muted{color:var(--muted);font-size:13px}
+.banner{border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:14px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.banner.warn{background:#fff4d6;border:1px solid #f0d28a}
+.banner.info{background:#e7f0f8;border:1px solid #bcd3e6}
+/* week bar */
+.weekbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.weekbar .lbl{flex:1;text-align:center;font-weight:700;font-size:16px;min-width:180px}
+/* schedule grid */
+.gridwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:14px;border:1px solid var(--line);background:#fff}
+table.grid{border-collapse:collapse;width:100%;min-width:780px;table-layout:fixed}
+.grid th,.grid td{border:1px solid var(--line);padding:0;vertical-align:top}
+.grid thead th{background:var(--navy);color:#fff;font-size:13px;padding:8px 4px;font-weight:600}
+.grid thead th small{display:block;font-weight:400;opacity:.8;font-size:11px;margin-top:2px;direction:ltr}
+.grid th.day{width:76px;background:#eaf0f5;color:var(--navy);font-size:14px;padding:8px 4px;text-align:center;vertical-align:middle}
+.grid th.day small{display:block;color:var(--muted);font-weight:400;font-size:12px}
+.grid col.brk{width:26px}
+.grid td.brk,.grid th.brk{background:#f1f4f7}
+.grid th.brk{writing-mode:vertical-rl;font-size:11px;padding:4px 0}
+.grid tr.today th.day{background:#ffe9a8}
+.grid tr.today td{background:var(--today)}
+.slot{display:flex;flex-direction:column;gap:3px;width:100%;height:100%;min-height:96px;padding:7px 5px;border-radius:0;background:transparent;color:var(--ink);text-align:right;font-weight:400}
+.slot:active{background:#e5eef6}
+.slot .c{font-weight:700;font-size:13.5px;color:var(--navy);line-height:1.3}
+.slot .g{font-size:12.5px;line-height:1.3}
+.slot .r{font-size:11.5px;color:var(--muted)}
+.slot .r.on{color:var(--online);font-weight:700}
+.slot .st{margin-top:auto;font-size:11.5px;border-radius:6px;padding:3px 5px;font-weight:600}
+.st.done{background:var(--p-bg);color:var(--p)}
+.st.part{background:var(--l-bg);color:var(--l)}
+.slot.now{outline:3px solid #e0a100;outline-offset:-3px}
+.c-k1{border-top:4px solid #2f7dbf}.c-k2{border-top:4px solid #16794d}.c-k3{border-top:4px solid #7a9a1a}.c-k4{border-top:4px solid #b85c00}.c-k5{border-top:4px solid #6a4fb3}.c-k6{border-top:4px solid #b03a6b}
+.legend{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.legend span{font-size:12px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:4px 10px}
+/* roster */
+.rhead{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.rhead h2{margin:0 0 4px;font-size:20px;color:var(--navy)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:13px;background:var(--soft);border-radius:20px;padding:5px 10px}
+.chip.on{background:#efe9fb;color:var(--online);font-weight:700}
+.counts{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.counts div{flex:1;min-width:90px;text-align:center;border-radius:12px;padding:8px;font-size:13px}
+.counts b{display:block;font-size:22px}
+.k-p{background:var(--p-bg);color:var(--p)}.k-a{background:var(--a-bg);color:var(--a)}.k-l{background:var(--l-bg);color:var(--l)}.k-u{background:var(--soft);color:var(--muted)}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+.tools button{flex:1;min-width:140px}
+.stu{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid #edf1f4}
+.stu:last-child{border-bottom:0}
+.stu .n{width:28px;color:var(--muted);font-size:13px;text-align:center}
+.stu .nm{flex:1;min-width:0}
+.stu .nm b{font-weight:600;display:block;font-size:16px}
+.stu .nm small{color:var(--muted);font-size:12px}
+.stu .warnb{color:var(--l);font-size:12px}
+.seg{display:flex;gap:6px}
+.seg button{min-width:76px;padding:10px 8px;background:#fff;border:1.5px solid var(--line);color:var(--muted);font-weight:600}
+.seg button.sp.on{background:var(--p);border-color:var(--p);color:#fff}
+.seg button.sa.on{background:var(--a);border-color:var(--a);color:#fff}
+.seg button.sl.on{background:var(--l);border-color:var(--l);color:#fff}
+.stu.s-P{background:#f6fcf8}.stu.s-A{background:#fff7f6}.stu.s-L{background:#fffbf2}
+.nextbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.nextbar button{flex:1;min-width:200px}
+/* tables */
+.tbl{overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff}
+table.rep{border-collapse:collapse;width:100%}
+.rep th,.rep td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;font-size:14px;white-space:nowrap}
+.rep th{background:#eaf0f5;color:var(--navy);position:sticky;top:0}
+.rep td.num{text-align:center}
+.rep tr.w td{background:#fff8e6}.rep tr.b td{background:#fdeceb}
+.tag{display:inline-block;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700}
+.tag.w{background:var(--l-bg);color:var(--l)}.tag.b{background:var(--a-bg);color:var(--a)}.tag.ok{background:var(--p-bg);color:var(--p)}
+.mx td.m{text-align:center;font-weight:700;padding:6px}
+.mx .P{color:var(--p)}.mx .A{color:var(--a);background:#fdf0ef}.mx .L{color:var(--l)}
+.mx th small{display:block;font-weight:400;font-size:11px}
+/* students admin */
+.srow{display:grid;grid-template-columns:34px 1fr 150px 92px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #edf1f4}
+.srow input[type=checkbox]{width:22px;height:22px;min-height:0}
+.srow.off input.nm{text-decoration:line-through;color:var(--muted)}
+.srow .rv{outline:2px solid #f0c060}
+.empty{text-align:center;padding:30px 14px}
+.empty h2{color:var(--navy)}
+footer{font-size:12px;color:var(--muted);text-align:center;padding:16px}
+.toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#16293a;color:#fff;padding:10px 18px;border-radius:24px;font-size:14px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+@media (max-width:640px){
+  .seg button{min-width:58px;padding:10px 4px;font-size:14px}
+  .stu .nm b{font-size:15px}
+  .srow{grid-template-columns:30px 1fr 80px}
+  .srow .uid{display:none}
+}
+@media print{
+  header.top,.noprint,nav{display:none!important}
+  body{background:#fff}
+  main{padding:0}
+  .card{border:0;padding:0}
+  .tbl{overflow:visible;border:0}
+  .rep th{position:static}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="toprow">
+    <div>
+      <h1>سجل الحضور والغياب</h1>
+      <div class="sub">الفصل الأول 2026/2027 — المدرس: يوسف عليان</div>
+    </div>
+    <div class="saved" id="savedState">محفوظ على هذا الجهاز ✓</div>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button data-tab="schedule" class="active">الجدول</button>
+    <button data-tab="reports">التقارير</button>
+    <button data-tab="students">الطلاب</button>
+    <button data-tab="backup">النسخ الاحتياطي</button>
+  </nav>
+</header>
+
+<main>
+  <div id="backupBanner" class="banner warn hidden noprint"></div>
+
+  <!-- ===== Schedule ===== -->
+  <section id="v-schedule">
+    <div id="noStudents" class="card empty hidden">
+      <h2>ابدأ باستيراد ملف الطلاب</h2>
+      <p class="muted">الجدول جاهز، لكن أسماء الطلاب لم تُضف بعد على هذا الجهاز.<br>اختر الملف <b>students-data.json</b> مرة واحدة فقط.</p>
+      <button class="primary" data-import>استيراد ملف الطلاب</button>
+    </div>
+    <div class="weekbar">
+      <button class="ghost" id="wPrev">→ الأسبوع السابق</button>
+      <div class="lbl" id="wLabel"></div>
+      <button class="ghost" id="wNext">الأسبوع التالي ←</button>
+      <button id="wToday">هذا الأسبوع</button>
+    </div>
+    <div class="gridwrap"><table class="grid" id="grid"></table></div>
+    <div class="legend" id="legend"></div>
+    <p class="muted">اضغط على خانة المحاضرة لفتح أسماء الطلاب وتسجيل الحضور. كل ضغطة تُحفظ فورًا على الجهاز ولا تحتاج إنترنت.</p>
+  </section>
+
+  <!-- ===== Roster ===== -->
+  <section id="v-roster" class="hidden">
+    <div class="card">
+      <div class="rhead">
+        <div>
+          <h2 id="rTitle"></h2>
+          <div class="chips" id="rChips"></div>
+        </div>
+        <button class="ghost" id="rBack">→ رجوع للجدول</button>
+      </div>
+      <div class="counts" id="rCounts"></div>
+      <div class="tools">
+        <button id="rAllP">الكل حاضر</button>
+        <button id="rCopy">نسخ تسجيل الحصة السابقة</button>
+        <button id="rClear" class="ghost">مسح تسجيل هذه الحصة</button>
+      </div>
+    </div>
+    <div class="card" id="rList"></div>
+    <div class="card">
+      <label for="rNote">ملاحظة على هذه المحاضرة (اختياري)</label>
+      <input id="rNote" placeholder="مثال: اختبار قصير، محاضرة تعويضية…">
+      <div class="nextbar">
+        <button class="ghost" id="rPrevSlot"></button>
+        <button class="primary" id="rNextSlot"></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Reports ===== -->
+  <section id="v-reports" class="hidden">
+    <div class="card noprint">
+      <div class="row">
+        <div class="f" style="flex:2"><label>المادة والشعبة</label><select id="repClass"></select></div>
+        <div class="f"><label>من تاريخ</label><input type="date" id="repFrom"></div>
+        <div class="f"><label>إلى تاريخ</label><input type="date" id="repTo"></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div class="f"><label>نسبة الإنذار (غياب ٪)</label><input type="number" id="setWarn" min="0" max="100" step="0.5"></div>
+        <div class="f"><label>نسبة الحرمان (غياب ٪)</label><input type="number" id="setBan" min="0" max="100" step="0.5"></div>
+        <div class="f"><label>طريقة العرض</label><select id="repMode"><option value="sum">ملخص لكل طالب</option><option value="mx">تفصيلي (كل محاضرة)</option></select></div>
+      </div>
+      <p class="muted">نسبة الغياب = عدد الحصص التي غاب فيها الطالب ÷ عدد الحصص المسجّلة. المتأخر يُحسب حاضرًا ويظهر في عمود مستقل. عدّل نسب الإنذار والحرمان حسب تعليمات الكلية.</p>
+      <div class="tools">
+        <button class="primary" id="repCsv">تنزيل Excel</button>
+        <button id="repAllCsv">تنزيل كل المواد في ملف واحد</button>
+        <button class="ghost" id="repPrint">طباعة / PDF</button>
+      </div>
+    </div>
+    <div class="card" id="repOut"></div>
+  </section>
+
+  <!-- ===== Students ===== -->
+  <section id="v-students" class="hidden">
+    <div class="card">
+      <div class="row">
+        <div class="f"><label>الشعبة</label><select id="stGroup"></select></div>
+        <div><button data-import>استيراد ملف طلاب</button></div>
+      </div>
+      <p class="muted">عدّل الاسم أو الرقم الجامعي مباشرة، ويُحفظ التعديل تلقائيًا. إزالة علامة ✓ تُخفي الطالب من قائمة الحضور دون حذف سجله. الأسماء المحاطة بإطار أصفر مضافة بخط اليد في الكشف وتحتاج مراجعة.</p>
+      <div id="stList"></div>
+      <div class="row" style="margin-top:12px">
+        <div class="f" style="flex:2"><label>إضافة طالب جديد</label><input id="stNewName" placeholder="اسم الطالب الرباعي"></div>
+        <div class="f"><label>الرقم الجامعي (اختياري)</label><input id="stNewUid" inputmode="numeric"></div>
+        <div><button class="primary" id="stAdd">إضافة</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Backup ===== -->
+  <section id="v-backup" class="hidden">
+    <div class="card">
+      <h2 style="margin-top:0">النسخ الاحتياطي ونقل البيانات</h2>
+      <p>كل البيانات محفوظة داخل هذا الجهاز فقط. لنقلها إلى الكمبيوتر أو للاحتفاظ بنسخة: نزّل نسخة احتياطية (يمكن إرسالها بـ AirDrop أو حفظها في «الملفات»)، ثم افتحها على الجهاز الآخر من «استيراد / دمج».</p>
+      <div id="bkStats" class="muted"></div>
+      <div class="tools" style="margin-top:12px">
+        <button class="primary" id="bkExport">تنزيل نسخة احتياطية كاملة</button>
+        <button data-import>استيراد / دمج ملف</button>
+      </div>
+      <p class="muted">الدمج لا يحذف شيئًا: يضيف الطلاب والمحاضرات الجديدة، وعند وجود المحاضرة نفسها على الجهازين يحتفظ بالتسجيل الأحدث.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">حماية البيانات</h3>
+      <p class="muted" id="bkPersist"></p>
+      <button class="ghost" id="bkWipe" style="color:var(--a)">مسح كل البيانات من هذا الجهاز</button>
+    </div>
+  </section>
+  <input type="file" id="fileIn" accept=".json,application/json" class="hidden">
+</main>
+<footer>يعمل دون إنترنت — البيانات لا تغادر الجهاز إلا عند تنزيل نسخة احتياطية</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ================= ثوابت الجدول (من ملف برنامج المدرس الأسبوعي 2026/2027) ================= */
+const DAYS=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
+const PERIODS=[
+  {n:1,name:'الأولى',t:'8:30 - 9:20'},{n:2,name:'الثانية',t:'9:20 - 10:10'},
+  {n:3,name:'الثالثة',t:'10:10 - 11:00'},{n:4,name:'الرابعة',t:'11:00 - 11:50'},
+  {n:5,name:'الخامسة',t:'12:10 - 1:00'},{n:6,name:'السادسة',t:'1:00 - 1:50'},
+  {n:7,name:'السابعة',t:'1:50 - 2:40'},{n:8,name:'الثامنة',t:'2:40 - 3:20'}];
+// بداية ونهاية كل حصة بالدقائق (لتمييز المحاضرة الحالية)
+const PMIN=[[510,560],[560,610],[610,660],[660,710],[730,780],[780,830],[830,880],[880,920]];
+const GROUPS=[
+  {id:'g1',name:'محاسبة ثانية تنافس'},
+  {id:'g2',name:'إدارة أعمال ثانية — شعبة ب',short:'أعمال 2 ش ب'},
+  {id:'g3',name:'إدارة أعمال أولى — شعبة 1',short:'أعمال 1 ش 1'},
+  {id:'g4',name:'محاسبة ثانية موازي'},
+  {id:'g5',name:'محاسبة أولى تنافس',short:'محاسبة 1 تنافس'}];
+const CLASSES=[
+  {id:'k1',course:'محاسبة ضرائب',group:'g1'},
+  {id:'k2',course:'محاسبة تطبيقية',group:'g2'},
+  {id:'k3',course:'محاسبة تطبيقية',group:'g3'},
+  {id:'k4',course:'محاسبة تكاليف',group:'g4'},
+  {id:'k5',course:'محاسبة ضرائب',group:'g4'},
+  {id:'k6',course:'أخلاقيات مهنة المحاسبة',group:'g5'}];
+// [اليوم 0=الأحد, الحصة, المادة, القاعة]
+const SLOTS=[
+  [0,1,'k2','C 105'],[0,2,'k2','C 105'],[0,3,'k5','Lab 6'],[0,4,'k5','Lab 6'],[0,5,'k3','Lab 7'],
+  [1,3,'k1','C 107'],[1,4,'k1','C 107'],[1,5,'k4','C 105'],[1,6,'k4','C 105'],[1,7,'k6','C 103'],
+  [2,6,'k2','Lab 6'],[2,7,'k3','C 209'],[2,8,'k3','C 209'],
+  [3,1,'k5','Lab 6'],[3,2,'k5','Lab 6'],[3,3,'k1','C 101'],[3,4,'k4','C 107'],
+  [4,1,'k6','ONLINE'],[4,2,'k1','ONLINE'],[4,3,'k2','ONLINE'],[4,5,'k4','ONLINE'],[4,6,'k6','ONLINE'],[4,8,'k3','ONLINE']
+].map(([day,period,cls,room])=>({id:`d${day}p${period}`,day,period,cls,room,online:room==='ONLINE'}));
+const G=Object.fromEntries(GROUPS.map(g=>[g.id,g]));
+const K=Object.fromEntries(CLASSES.map(c=>[c.id,c]));
+const S=Object.fromEntries(SLOTS.map(s=>[s.id,s]));
+const gShort=id=>G[id]?.short||G[id]?.name||id;
+const clsLabel=id=>`${K[id].course} — ${gShort(K[id].group)}`;
+const ST={P:'حاضر',A:'غائب',L:'متأخر'};
+
+/* ================= التخزين ================= */
+const KEY='hudoor_db_v2';
+function blankDb(){return{app:'hudoor',version:2,students:[],sessions:{},settings:{warn:10,ban:15},lastBackup:null,createdAt:new Date().toISOString()}}
+let db;
+try{db=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){db=null}
+if(!db||db.app!=='hudoor')db=blankDb();
+db.settings=Object.assign({warn:10,ban:15},db.settings||{});
+let storageOk=true;
+function persist(){
+  try{localStorage.setItem(KEY,JSON.stringify(db));storageOk=true;$('savedState').textContent='محفوظ على هذا الجهاز ✓';$('savedState').style.background=''}
+  catch(e){storageOk=false;$('savedState').textContent='⚠ تعذّر الحفظ!';$('savedState').style.background='#b42318';alert('تعذّر الحفظ على هذا الجهاز. نزّل نسخة احتياطية فورًا من تبويب «النسخ الاحتياطي».')}
+}
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+
+/* ================= أدوات ================= */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseIso=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const dm=d=>`${d.getDate()}/${d.getMonth()+1}`;
+const dmy=d=>`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+const weekStart=d=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-x.getDay());return x};
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),1800)}
+const studentsOf=g=>db.students.filter(s=>s.groupId===g);
+const activeOf=g=>studentsOf(g).filter(s=>s.active!==false);
+const sid=(date,slotId)=>`${date}|${slotId}`;
+const sessionDate=(ws,day)=>iso(addDays(ws,day));
+
+/* ================= التبويبات ================= */
+let curTab='schedule';
+function showTab(t){
+  curTab=t;
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+  ['schedule','roster','reports','students','backup'].forEach(v=>$('v-'+v).classList.toggle('hidden',v!==t));
+  if(t==='schedule')renderGrid();
+  if(t==='reports')renderReport();
+  if(t==='students')renderStudents();
+  if(t==='backup')renderBackup();
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+
+/* ================= الجدول الأسبوعي ================= */
+let ws=weekStart(new Date());
+function slotStatus(date,slot){
+  const s=db.sessions[sid(date,slot.id)];if(!s)return null;
+  const list=activeOf(K[slot.cls].group);
+  let a=0,l=0,u=0;list.forEach(st=>{const m=s.marks[st.id];if(m==='A')a++;else if(m==='L')l++;else if(!m)u++});
+  return{a,l,u,total:list.length};
+}
+function renderGrid(){
+  const today=iso(new Date());const now=new Date();const mins=now.getHours()*60+now.getMinutes();
+  $('wLabel').textContent=`الأسبوع: ${dm(ws)} — ${dmy(addDays(ws,4))}`;
+  $('noStudents').classList.toggle('hidden',db.students.length>0);
+  let h='<colgroup><col style="width:76px">';
+  PERIODS.forEach(p=>{h+='<col>';if(p.n===4)h+='<col class="brk">'});
+  h+='</colgroup><thead><tr><th>اليوم</th>';
+  PERIODS.forEach(p=>{h+=`<th>${p.name}<small>${p.t}</small></th>`;if(p.n===4)h+='<th class="brk">استراحة</th>'});
+  h+='</tr></thead><tbody>';
+  DAYS.forEach((dname,day)=>{
+    const date=sessionDate(ws,day);const isToday=date===today;
+    h+=`<tr class="${isToday?'today':''}"><th class="day">${dname}<small>${dm(parseIso(date))}</small></th>`;
+    PERIODS.forEach(p=>{
+      const slot=S[`d${day}p${p.n}`];
+      if(!slot){h+='<td></td>'}
+      else{
+        const c=K[slot.cls];const st=slotStatus(date,slot);
+        let stHtml='';
+        if(st){stHtml=st.u?`<span class="st part">ناقص ${st.u} · غ ${st.a}</span>`:`<span class="st done">✓ غ ${st.a}${st.l?` · ت ${st.l}`:''}</span>`}
+        const isNow=isToday&&mins>=PMIN[p.n-1][0]-10&&mins<PMIN[p.n-1][1];
+        h+=`<td class="c-${slot.cls}"><button class="slot${isNow?' now':''}" data-slot="${slot.id}" data-date="${date}">
+          <span class="c">${esc(c.course)}</span><span class="g">${esc(gShort(c.group))}</span>
+          <span class="r${slot.online?' on':''}">${slot.online?'أونلاين':esc(slot.room)}</span>${stHtml}</button></td>`;
+      }
+      if(p.n===4)h+='<td class="brk"></td>';
+    });
+    h+='</tr>';
+  });
+  h+='</tbody>';
+  $('grid').innerHTML=h;
+  $('grid').querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>openRoster(b.dataset.slot,b.dataset.date));
+  $('legend').innerHTML=CLASSES.map(c=>`<span class="c-${c.id}">${esc(clsLabel(c.id))} — ${activeOf(c.group).length} طالب</span>`).join('');
+  renderBanner();
+}
+$('wPrev').onclick=()=>{ws=addDays(ws,-7);renderGrid()};
+$('wNext').onclick=()=>{ws=addDays(ws,7);renderGrid()};
+$('wToday').onclick=()=>{ws=weekStart(new Date());renderGrid()};
+
+/* ================= شاشة تسجيل الحضور ================= */
+let cur=null; // {slotId,date}
+function getSession(create){
+  const id=sid(cur.date,cur.slotId);
+  if(!db.sessions[id]&&create){const sl=S[cur.slotId];db.sessions[id]={id,slotId:sl.id,cls:sl.cls,date:cur.date,day:sl.day,period:sl.period,online:sl.online,note:'',marks:{},updatedAt:new Date().toISOString()}}
+  return db.sessions[id];
+}
+function daySlots(day){return SLOTS.filter(s=>s.day===day).sort((a,b)=>a.period-b.period)}
+function prevSameClass(){
+  const sl=S[cur.slotId];
+  return daySlots(sl.day).filter(s=>s.cls===sl.cls&&s.period<sl.period).map(s=>db.sessions[sid(cur.date,s.id)]).filter(Boolean).pop();
+}
+function openRoster(slotId,date){
+  cur={slotId,date};
+  ['schedule','reports','students','backup'].forEach(v=>$('v-'+v).classList.add('hidden'));
+  $('v-roster').classList.remove('hidden');
+  renderRoster();window.scrollTo(0,0);
+}
+function renderRoster(){
+  const sl=S[cur.slotId],c=K[sl.cls],p=PERIODS[sl.period-1],d=parseIso(cur.date);
+  $('rTitle').textContent=`${c.course} — ${G[c.group].name}`;
+  $('rChips').innerHTML=`<span class="chip">${DAYS[sl.day]} ${dmy(d)}</span><span class="chip">المحاضرة ${p.name} (${p.t})</span><span class="chip${sl.online?' on':''}">${sl.online?'أونلاين':esc(sl.room)}</span>`;
+  const list=activeOf(c.group);const s=getSession(false);const marks=s?s.marks:{};
+  if(!list.length){$('rList').innerHTML='<div class="empty"><p>لا يوجد طلاب في هذه الشعبة على هذا الجهاز.</p><button class="primary" data-import>استيراد ملف الطلاب</button></div>';bindImport()}
+  else $('rList').innerHTML=list.map((st,i)=>{
+    const m=marks[st.id]||'';
+    return `<div class="stu${m?' s-'+m:''}" data-st="${st.id}"><span class="n">${i+1}</span>
+      <div class="nm"><b>${esc(st.name)}</b>${st.uid?`<small>${esc(st.uid)}</small>`:''}${st.review?'<span class="warnb"> ⚠ راجع الاسم</span>':''}</div>
+      <div class="seg"><button class="sp${m==='P'?' on':''}" data-v="P">حاضر</button><button class="sa${m==='A'?' on':''}" data-v="A">غائب</button><button class="sl${m==='L'?' on':''}" data-v="L">متأخر</button></div></div>`}).join('');
+  $('rList').querySelectorAll('.stu').forEach(row=>row.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>mark(row.dataset.st,b.dataset.v,row)));
+  $('rNote').value=s?.note||'';
+  updateCounts();
+  const prev=prevSameClass();$('rCopy').disabled=!prev;
+  $('rCopy').textContent=prev?`نسخ تسجيل المحاضرة ${PERIODS[prev.period-1].name}`:'نسخ تسجيل الحصة السابقة';
+  const ds=daySlots(sl.day);const idx=ds.findIndex(x=>x.id===sl.id);
+  const nx=ds[idx+1],pv=ds[idx-1];
+  $('rNextSlot').textContent=nx?`التالي: المحاضرة ${PERIODS[nx.period-1].name} ←`:'انتهت محاضرات اليوم — رجوع للجدول';
+  $('rNextSlot').onclick=()=>nx?openRoster(nx.id,cur.date):showTab('schedule');
+  $('rPrevSlot').classList.toggle('hidden',!pv);
+  if(pv){$('rPrevSlot').textContent=`→ السابق: المحاضرة ${PERIODS[pv.period-1].name}`;$('rPrevSlot').onclick=()=>openRoster(pv.id,cur.date)}
+}
+function mark(stId,v,row){
+  const s=getSession(true);
+  if(s.marks[stId]===v)delete s.marks[stId];else s.marks[stId]=v;
+  s.updatedAt=new Date().toISOString();persist();
+  const m=s.marks[stId]||'';
+  row.className='stu'+(m?' s-'+m:'');
+  row.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',b.dataset.v===m));
+  updateCounts();
+}
+function updateCounts(){
+  const c=K[S[cur.slotId].cls];const list=activeOf(c.group);const s=getSession(false);const mk=s?s.marks:{};
+  let n={P:0,A:0,L:0,U:0};list.forEach(st=>n[mk[st.id]||'U']++);
+  $('rCounts').innerHTML=`<div class="k-p"><b>${n.P}</b>حاضر</div><div class="k-a"><b>${n.A}</b>غائب</div><div class="k-l"><b>${n.L}</b>متأخر</div><div class="k-u"><b>${n.U}</b>لم يُحدَّد</div>`;
+}
+$('rAllP').onclick=()=>{
+  const s=getSession(true);const list=activeOf(K[S[cur.slotId].cls].group);
+  list.forEach(st=>{if(!s.marks[st.id])s.marks[st.id]='P'});
+  s.updatedAt=new Date().toISOString();persist();renderRoster();toast('تم تحديد غير المحدَّدين حاضرين');
+};
+$('rCopy').onclick=()=>{
+  const prev=prevSameClass();if(!prev)return;const s=getSession(true);
+  s.marks=Object.assign({},prev.marks);s.updatedAt=new Date().toISOString();persist();renderRoster();toast('تم النسخ — عدّل من تغيّر وضعه');
+};
+$('rClear').onclick=()=>{
+  const s=getSession(false);if(!s)return;
+  if(!confirm('مسح كل التسجيل لهذه المحاضرة؟'))return;
+  delete db.sessions[s.id];persist();renderRoster();toast('تم المسح');
+};
+$('rNote').oninput=()=>{const s=getSession(true);s.note=$('rNote').value;s.updatedAt=new Date().toISOString();persist()};
+$('rBack').onclick=()=>showTab('schedule');
+
+/* ================= التقارير ================= */
+function fillRepClass(){
+  const el=$('repClass');if(el.options.length)return;
+  el.innerHTML=CLASSES.map(c=>`<option value="${c.id}">${esc(clsLabel(c.id))}</option>`).join('');
+}
+function repSessions(cls){
+  const f=$('repFrom').value,t=$('repTo').value;
+  return Object.values(db.sessions).filter(s=>s.cls===cls&&(!f||s.date>=f)&&(!t||s.date<=t)).sort((a,b)=>(a.date+a.period).localeCompare(b.date+b.period));
+}
+function computeRep(cls){
+  const ss=repSessions(cls);const studs=studentsOf(K[cls].group);
+  const rows=studs.map(st=>{
+    let P=0,A=0,L=0,U=0;ss.forEach(s=>{const m=s.marks[st.id];if(m==='P')P++;else if(m==='A')A++;else if(m==='L')L++;else U++});
+    const rec=P+A+L;const pct=ss.length?A/ss.length*100:0;
+    const lvl=pct>=db.settings.ban?'b':pct>=db.settings.warn?'w':'';
+    return{st,P,A,L,U,pct,lvl};
+  }).filter(r=>r.st.active!==false||r.P+r.A+r.L>0);
+  return{ss,rows};
+}
+const fmtPct=x=>(Math.round(x*10)/10).toString();
+const lvlName={b:'حرمان',w:'إنذار','':'—'};
+function renderReport(){
+  fillRepClass();
+  $('setWarn').value=db.settings.warn;$('setBan').value=db.settings.ban;
+  const cls=$('repClass').value;const{ss,rows}=computeRep(cls);
+  const head=`<h2 style="margin:0 0 4px;color:var(--navy)">${esc(clsLabel(cls))}</h2><p class="muted">عدد الحصص المسجّلة: <b>${ss.length}</b>${$('repFrom').value||$('repTo').value?` — الفترة ${esc($('repFrom').value||'…')} إلى ${esc($('repTo').value||'…')}`:''}</p>`;
+  if(!rows.length){$('repOut').innerHTML=head+'<p class="muted">لا يوجد طلاب لهذه الشعبة بعد.</p>';return}
+  if($('repMode').value==='sum'){
+    $('repOut').innerHTML=head+`<div class="tbl"><table class="rep"><thead><tr><th>#</th><th>اسم الطالب</th><th>الرقم الجامعي</th><th>حضور</th><th>غياب</th><th>تأخير</th><th>لم يُسجَّل</th><th>نسبة الغياب</th><th>الحالة</th></tr></thead><tbody>${
+      rows.map((r,i)=>`<tr class="${r.lvl}"><td class="num">${i+1}</td><td>${esc(r.st.name)}${r.st.active===false?' <small class="muted">(غير فعّال)</small>':''}</td><td>${esc(r.st.uid||'')}</td><td class="num">${r.P}</td><td class="num">${r.A}</td><td class="num">${r.L}</td><td class="num">${r.U}</td><td class="num">${fmtPct(r.pct)}٪</td><td>${r.lvl?`<span class="tag ${r.lvl}">${lvlName[r.lvl]}</span>`:'<span class="tag ok">منتظم</span>'}</td></tr>`).join('')
+    }</tbody></table></div>`;
+  }else{
+    $('repOut').innerHTML=head+`<div class="tbl"><table class="rep mx"><thead><tr><th>اسم الطالب</th>${ss.map(s=>`<th>${dm(parseIso(s.date))}<small>${PERIODS[s.period-1].name}</small></th>`).join('')}<th>غياب</th></tr></thead><tbody>${
+      rows.map(r=>`<tr><td>${esc(r.st.name)}</td>${ss.map(s=>{const m=s.marks[r.st.id]||'';return`<td class="m ${m}">${m?ST[m][0]:'·'}</td>`}).join('')}<td class="num"><b>${r.A}</b></td></tr>`).join('')
+    }</tbody></table></div><p class="muted">ح = حاضر، غ = غائب، م = متأخر، · = لم يُسجَّل</p>`;
+  }
+}
+['repClass','repFrom','repTo','repMode'].forEach(id=>$(id).onchange=renderReport);
+['setWarn','setBan'].forEach(id=>$(id).onchange=()=>{db.settings.warn=+$('setWarn').value||0;db.settings.ban=+$('setBan').value||0;persist();renderReport()});
+const csvq=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+function repCsvLines(cls,withHeader){
+  const{ss,rows}=computeRep(cls);const L=[];
+  if($('repMode').value==='mx'){
+    L.push(['المادة والشعبة','اسم الطالب','الرقم الجامعي',...ss.map(s=>`${s.date} ${PERIODS[s.period-1].name}`),'مجموع الغياب'].map(csvq).join(','));
+    rows.forEach(r=>L.push([clsLabel(cls),r.st.name,r.st.uid||'',...ss.map(s=>ST[s.marks[r.st.id]]||''),r.A].map(csvq).join(',')));
+  }else{
+    if(withHeader)L.push(['المادة والشعبة','اسم الطالب','الرقم الجامعي','عدد الحصص المسجلة','حضور','غياب','تأخير','لم يسجل','نسبة الغياب %','الحالة'].map(csvq).join(','));
+    rows.forEach(r=>L.push([clsLabel(cls),r.st.name,r.st.uid||'',ss.length,r.P,r.A,r.L,r.U,fmtPct(r.pct),lvlName[r.lvl]].map(csvq).join(',')));
+  }
+  return L;
+}
+$('repCsv').onclick=()=>{const cls=$('repClass').value;saveFile(`حضور - ${clsLabel(cls)} - ${iso(new Date())}.csv`,'﻿'+repCsvLines(cls,true).join('\r\n'),'text/csv')};
+$('repAllCsv').onclick=()=>{
+  let L=[];CLASSES.forEach((c,i)=>{const part=repCsvLines(c.id,i===0||$('repMode').value==='mx');if($('repMode').value==='mx'&&i)L.push('');L=L.concat(part)});
+  saveFile(`حضور - كل المواد - ${iso(new Date())}.csv`,'﻿'+L.join('\r\n'),'text/csv');
+};
+$('repPrint').onclick=()=>window.print();
+
+/* ================= إدارة الطلاب ================= */
+function renderStudents(){
+  const el=$('stGroup');if(!el.options.length)el.innerHTML=GROUPS.map(g=>`<option value="${g.id}">${esc(g.name)} — ${esc(CLASSES.filter(c=>c.group===g.id).map(c=>c.course).join(' + '))}</option>`).join('');
+  const list=studentsOf(el.value);
+  $('stList').innerHTML=list.length?list.map((s,i)=>`<div class="srow${s.active===false?' off':''}" data-id="${s.id}">
+    <input type="checkbox" ${s.active!==false?'checked':''} title="فعّال">
+    <input class="nm${s.review?' rv':''}" value="${esc(s.name)}">
+    <input class="uid" value="${esc(s.uid||'')}" placeholder="الرقم الجامعي" inputmode="numeric">
+    <small class="muted">${s.note?esc(s.note):''}</small></div>`).join(''):'<p class="muted">لا يوجد طلاب في هذه الشعبة. استورد ملف الطلاب أو أضف الأسماء يدويًا.</p>';
+  $('stList').querySelectorAll('.srow').forEach(r=>{
+    const st=db.students.find(x=>x.id===r.dataset.id);const[cb,nm,uid]=r.querySelectorAll('input');
+    cb.onchange=()=>{st.active=cb.checked;st.updatedAt=new Date().toISOString();persist();r.classList.toggle('off',!cb.checked)};
+    nm.onchange=()=>{const v=nm.value.trim();if(!v){nm.value=st.name;return}st.name=v;if(st.review){delete st.review;delete st.note;nm.classList.remove('rv')}st.updatedAt=new Date().toISOString();persist();toast('تم حفظ الاسم')};
+    uid.onchange=()=>{st.uid=uid.value.trim();st.updatedAt=new Date().toISOString();persist()};
+  });
+}
+$('stGroup').onchange=renderStudents;
+$('stAdd').onclick=()=>{
+  const name=$('stNewName').value.trim();if(!name)return toast('اكتب اسم الطالب');
+  const g=$('stGroup').value;
+  db.students.push({id:`${g}-n${Date.now().toString(36)}`,groupId:g,name,uid:$('stNewUid').value.trim(),active:true,updatedAt:new Date().toISOString()});
+  persist();$('stNewName').value='';$('stNewUid').value='';renderStudents();toast('تمت الإضافة');
+};
+
+/* ================= النسخ الاحتياطي ================= */
+async function saveFile(name,data,type){
+  const blob=new Blob([data],{type:type+';charset=utf-8'});
+  try{
+    const file=new File([blob],name,{type});
+    if(navigator.canShare&&navigator.canShare({files:[file]})&&/iPad|iPhone|Macintosh/.test(navigator.userAgent)&&'ontouchend' in document){
+      await navigator.share({files:[file],title:name});return true;
+    }
+  }catch(e){if(e&&e.name==='AbortError')return false}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);return true;
+}
+function counts(){const ss=Object.values(db.sessions);return{st:db.students.filter(s=>s.active!==false).length,ss:ss.length,marks:ss.reduce((n,s)=>n+Object.keys(s.marks).length,0)}}
+function renderBackup(){
+  const c=counts();
+  $('bkStats').innerHTML=`على هذا الجهاز الآن: <b>${c.st}</b> طالبًا فعّالًا، <b>${c.ss}</b> حصة مسجّلة، <b>${c.marks}</b> علامة حضور.<br>آخر نسخة احتياطية: <b>${db.lastBackup?dmy(new Date(db.lastBackup))+' '+new Date(db.lastBackup).toLocaleTimeString('ar-JO',{hour:'2-digit',minute:'2-digit'}):'لم تُنزَّل أي نسخة بعد'}</b>`;
+  let msg='التخزين: محلي داخل المتصفح.';
+  if(navigator.storage&&navigator.storage.persisted)navigator.storage.persisted().then(p=>{$('bkPersist').textContent=msg+(p?' المتصفح منح التطبيق تخزينًا دائمًا ✓':' أضف التطبيق إلى الشاشة الرئيسية ونزّل نسخة احتياطية أسبوعيًا لضمان عدم ضياع البيانات.')});
+  else $('bkPersist').textContent=msg+' نزّل نسخة احتياطية أسبوعيًا.';
+}
+$('bkExport').onclick=async()=>{
+  const ok=await saveFile(`نسخة-احتياطية-الحضور-${iso(new Date())}.json`,JSON.stringify(Object.assign({},db,{exportedAt:new Date().toISOString(),kind:'backup'}),null,1),'application/json');
+  if(ok){db.lastBackup=new Date().toISOString();persist();renderBackup();renderBanner();toast('تم تجهيز النسخة الاحتياطية')}
+};
+$('bkWipe').onclick=()=>{
+  if(!confirm('سيتم حذف كل الطلاب وكل سجلات الحضور من هذا الجهاز. هل نزّلت نسخة احتياطية؟'))return;
+  if(prompt('للتأكيد اكتب كلمة: مسح')!=='مسح')return toast('أُلغي المسح');
+  db=blankDb();persist();renderBackup();toast('تم المسح');
+};
+function bindImport(){document.querySelectorAll('[data-import]').forEach(b=>b.onclick=()=>$('fileIn').click())}
+$('fileIn').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  let d;try{d=JSON.parse(await f.text())}catch(err){return alert('الملف غير صالح. اختر ملف JSON صادرًا من هذا البرنامج.')}
+  if(!d||d.app!=='hudoor'||!Array.isArray(d.students))return alert('هذا الملف ليس من ملفات برنامج الحضور.');
+  let addS=0,updS=0,addR=0,updR=0;
+  d.students.forEach(s=>{
+    const ex=db.students.find(x=>x.id===s.id);
+    if(!ex){db.students.push(s);addS++}
+    else if((s.updatedAt||'')>(ex.updatedAt||'')){Object.assign(ex,s);updS++}
+  });
+  Object.values(d.sessions||{}).forEach(s=>{
+    const ex=db.sessions[s.id];
+    if(!ex){db.sessions[s.id]=s;addR++}
+    else if((s.updatedAt||'')>(ex.updatedAt||'')){db.sessions[s.id]=s;updR++}
+  });
+  if(d.settings&&d.kind==='backup'&&!Object.keys(db.sessions).length)db.settings=Object.assign(db.settings,d.settings);
+  persist();
+  alert(`تم الاستيراد:\n• طلاب جدد: ${addS}${updS?` (وتحديث ${updS})`:''}\n• حصص مسجّلة جديدة: ${addR}${updR?` (وتحديث ${updR})`:''}`);
+  showTab(curTab==='roster'?'schedule':curTab);
+};
+function renderBanner(){
+  const el=$('backupBanner');const c=counts();
+  const days=db.lastBackup?(Date.now()-new Date(db.lastBackup))/864e5:Infinity;
+  if(c.ss>0&&days>7){
+    el.innerHTML=`<span>⚠ ${db.lastBackup?`مرّ ${Math.floor(days)} يومًا على آخر نسخة احتياطية`:'لم تُنزَّل أي نسخة احتياطية بعد'}. البيانات موجودة على هذا الجهاز فقط.</span><button class="primary" id="bnBk">تنزيل نسخة الآن</button>`;
+    el.classList.remove('hidden');$('bnBk').onclick=()=>$('bkExport').click();
+  }else el.classList.add('hidden');
+}
+
+/* ================= بدء التشغيل ================= */
+bindImport();
+showTab('schedule');
+setInterval(()=>{if(curTab==='schedule')renderGrid()},60000);
+if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+</script>
+</body>
+</html>
