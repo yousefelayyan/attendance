@@ -143,7 +143,7 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:16px}
       <h1>سجل الحضور والغياب</h1>
       <div class="sub">الفصل الأول 2026/2027 — المدرس: يوسف عليان</div>
     </div>
-    <div class="saved" id="savedState">محفوظ على هذا الجهاز ✓</div>
+    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end"><div class="saved" id="savedState">محفوظ على هذا الجهاز ✓</div><button class="saved hidden" id="syncState" style="min-height:0;border:0;color:#fff;font-weight:400"></button></div>
   </div>
   <nav class="tabs" id="tabs">
     <button data-tab="schedule" class="active">الجدول</button>
@@ -244,6 +244,19 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:16px}
 
   <!-- ===== Backup ===== -->
   <section id="v-backup" class="hidden">
+    <div class="card" id="syncCard">
+      <h2 style="margin-top:0">المزامنة بين الأجهزة (Google Sheets)</h2>
+      <p class="muted">عند تفعيلها: تسجّل على أي جهاز ولو دون إنترنت، وعندما يتصل الجهاز بالإنترنت تُرسل التسجيلات إلى ملف Google Sheets الخاص بك وتصل إلى باقي الأجهزة تلقائيًا.</p>
+      <div id="syncInfo" style="margin:8px 0"></div>
+      <div class="row">
+        <div class="f"><label for="syncSecret">الرمز السري للمزامنة</label><input id="syncSecret" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="مثال: abcd1234"></div>
+        <div><button class="primary" id="syncSave">حفظ وتفعيل</button></div>
+        <div><button id="syncNow">زامن الآن</button></div>
+      </div>
+      <details style="margin-top:10px"><summary class="muted">إعدادات متقدمة</summary>
+        <label for="syncUrl" style="margin-top:8px">رابط خدمة المزامنة</label><input id="syncUrl" dir="ltr" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec">
+      </details>
+    </div>
     <div class="card">
       <h2 style="margin-top:0">النسخ الاحتياطي ونقل البيانات</h2>
       <p>كل البيانات محفوظة داخل هذا الجهاز فقط. لنقلها إلى الكمبيوتر أو للاحتفاظ بنسخة: نزّل نسخة احتياطية (يمكن إرسالها بـ AirDrop أو حفظها في «الملفات»)، ثم افتحها على الجهاز الآخر من «استيراد / دمج».</p>
@@ -262,7 +275,7 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:16px}
   </section>
   <input type="file" id="fileIn" accept=".json,application/json" class="hidden">
 </main>
-<footer>يعمل دون إنترنت — البيانات لا تغادر الجهاز إلا عند تنزيل نسخة احتياطية</footer>
+<footer>يعمل دون إنترنت — البيانات محفوظة على الجهاز، وتُرسل إلى Google Sheets الخاص بك فقط عند تفعيل المزامنة</footer>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -314,10 +327,12 @@ let db;
 try{db=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){db=null}
 if(!db||db.app!=='hudoor')db=blankDb();
 db.settings=Object.assign({warn:10,ban:15},db.settings||{});
+db.sync=Object.assign({url:'',secret:'',rev:0,pushedAt:null,lastOk:null,lastErr:''},db.sync||{});
 // إضافة الأسماء المدمجة تلقائيًا (لا تُلغي تعديلاتك: تُضاف فقط الأسماء غير الموجودة)
 (function seed(){const have=new Set(db.students.map(x=>x.id));let n=0;EMBEDDED_STUDENTS.forEach(st=>{if(!have.has(st.id)){db.students.push(Object.assign({},st));n++}});if(n){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}}})();
 let storageOk=true;
-function persist(){
+function persist(noSync){
+  if(!noSync)scheduleSync();
   try{localStorage.setItem(KEY,JSON.stringify(db));storageOk=true;$('savedState').textContent='محفوظ على هذا الجهاز ✓';$('savedState').style.background=''}
   catch(e){storageOk=false;$('savedState').textContent='⚠ تعذّر الحفظ!';$('savedState').style.background='#b42318';alert('تعذّر الحفظ على هذا الجهاز. نزّل نسخة احتياطية فورًا من تبويب «النسخ الاحتياطي».')}
 }
@@ -356,7 +371,7 @@ document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>showTab(b.dat
 /* ================= الجدول الأسبوعي ================= */
 let ws=weekStart(new Date());
 function slotStatus(date,slot){
-  const s=db.sessions[sid(date,slot.id)];if(!s)return null;
+  const s=db.sessions[sid(date,slot.id)];if(!s||s.deleted)return null;
   const list=activeOf(K[slot.cls].group);
   let a=0,l=0,u=0;list.forEach(st=>{const m=s.marks[st.id];if(m==='A')a++;else if(m==='L')l++;else if(!m)u++});
   return{a,l,u,total:list.length};
@@ -403,13 +418,14 @@ $('wToday').onclick=()=>{ws=weekStart(new Date());renderGrid()};
 let cur=null; // {slotId,date}
 function getSession(create){
   const id=sid(cur.date,cur.slotId);
+  if(db.sessions[id]&&db.sessions[id].deleted&&create){db.sessions[id].deleted=false;db.sessions[id].marks={}}
   if(!db.sessions[id]&&create){const sl=S[cur.slotId];db.sessions[id]={id,slotId:sl.id,cls:sl.cls,date:cur.date,day:sl.day,period:sl.period,online:sl.online,note:'',marks:{},updatedAt:new Date().toISOString()}}
   return db.sessions[id];
 }
 function daySlots(day){return SLOTS.filter(s=>s.day===day).sort((a,b)=>a.period-b.period)}
 function prevSameClass(){
   const sl=S[cur.slotId];
-  return daySlots(sl.day).filter(s=>s.cls===sl.cls&&s.period<sl.period).map(s=>db.sessions[sid(cur.date,s.id)]).filter(Boolean).pop();
+  return daySlots(sl.day).filter(s=>s.cls===sl.cls&&s.period<sl.period).map(s=>db.sessions[sid(cur.date,s.id)]).filter(x=>x&&!x.deleted&&Object.keys(x.marks).length).pop();
 }
 function openRoster(slotId,date){
   cur={slotId,date};
@@ -466,7 +482,7 @@ $('rCopy').onclick=()=>{
 $('rClear').onclick=()=>{
   const s=getSession(false);if(!s)return;
   if(!confirm('مسح كل التسجيل لهذه المحاضرة؟'))return;
-  delete db.sessions[s.id];persist();renderRoster();toast('تم المسح');
+  s.marks={};s.note='';s.deleted=true;s.updatedAt=new Date().toISOString();persist();renderRoster();toast('تم المسح');
 };
 $('rNote').oninput=()=>{const s=getSession(true);s.note=$('rNote').value;s.updatedAt=new Date().toISOString();persist()};
 $('rBack').onclick=()=>showTab('schedule');
@@ -478,7 +494,7 @@ function fillRepClass(){
 }
 function repSessions(cls){
   const f=$('repFrom').value,t=$('repTo').value;
-  return Object.values(db.sessions).filter(s=>s.cls===cls&&(!f||s.date>=f)&&(!t||s.date<=t)).sort((a,b)=>(a.date+a.period).localeCompare(b.date+b.period));
+  return Object.values(db.sessions).filter(s=>!s.deleted&&s.cls===cls&&(!f||s.date>=f)&&(!t||s.date<=t)).sort((a,b)=>(a.date+a.period).localeCompare(b.date+b.period));
 }
 function computeRep(cls){
   const ss=repSessions(cls);const studs=studentsOf(K[cls].group);
@@ -565,8 +581,9 @@ async function saveFile(name,data,type){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),4000);return true;
 }
-function counts(){const ss=Object.values(db.sessions);return{st:db.students.filter(s=>s.active!==false).length,ss:ss.length,marks:ss.reduce((n,s)=>n+Object.keys(s.marks).length,0)}}
+function counts(){const ss=Object.values(db.sessions).filter(s=>!s.deleted);return{st:db.students.filter(s=>s.active!==false).length,ss:ss.length,marks:ss.reduce((n,s)=>n+Object.keys(s.marks).length,0)}}
 function renderBackup(){
+  renderSyncCard();
   const c=counts();
   $('bkStats').innerHTML=`على هذا الجهاز الآن: <b>${c.st}</b> طالبًا فعّالًا، <b>${c.ss}</b> حصة مسجّلة، <b>${c.marks}</b> علامة حضور.<br>آخر نسخة احتياطية: <b>${db.lastBackup?dmy(new Date(db.lastBackup))+' '+new Date(db.lastBackup).toLocaleTimeString('ar-JO',{hour:'2-digit',minute:'2-digit'}):'لم تُنزَّل أي نسخة بعد'}</b>`;
   let msg='التخزين: محلي داخل المتصفح.';
@@ -580,7 +597,7 @@ $('bkExport').onclick=async()=>{
 $('bkWipe').onclick=()=>{
   if(!confirm('سيتم حذف كل الطلاب وكل سجلات الحضور من هذا الجهاز. هل نزّلت نسخة احتياطية؟'))return;
   if(prompt('للتأكيد اكتب كلمة: مسح')!=='مسح')return toast('أُلغي المسح');
-  db=blankDb();persist();renderBackup();toast('تم المسح');
+  const keep={url:db.sync.url,secret:db.sync.secret};db=blankDb();db.sync=Object.assign({url:'',secret:'',rev:0,pushedAt:null,lastOk:null,lastErr:''},keep);persist(true);renderBackup();toast('تم المسح');
 };
 function bindImport(){document.querySelectorAll('[data-import]').forEach(b=>b.onclick=()=>$('fileIn').click())}
 $('fileIn').onchange=async e=>{
@@ -606,15 +623,101 @@ $('fileIn').onchange=async e=>{
 function renderBanner(){
   const el=$('backupBanner');const c=counts();
   const days=db.lastBackup?(Date.now()-new Date(db.lastBackup))/864e5:Infinity;
-  if(c.ss>0&&days>7){
+  const synced=db.sync.lastOk&&(Date.now()-new Date(db.sync.lastOk))/864e5<7;
+  if(c.ss>0&&days>7&&!synced){
     el.innerHTML=`<span>⚠ ${db.lastBackup?`مرّ ${Math.floor(days)} يومًا على آخر نسخة احتياطية`:'لم تُنزَّل أي نسخة احتياطية بعد'}. البيانات موجودة على هذا الجهاز فقط.</span><button class="primary" id="bnBk">تنزيل نسخة الآن</button>`;
     el.classList.remove('hidden');$('bnBk').onclick=()=>$('bkExport').click();
   }else el.classList.add('hidden');
 }
 
+/* ================= المزامنة مع Google Sheets ================= */
+const SYNC_URL=''; // رابط خدمة Apps Script — يُضاف بعد نشرها
+const syncUrl=()=>(db.sync.url||SYNC_URL||'').trim();
+let syncBusy=false,syncAgain=false,syncTimer=null;
+function syncReady(){return !!(syncUrl()&&db.sync.secret)}
+function pendingCount(){
+  const t=db.sync.pushedAt||'';
+  return Object.values(db.sessions).filter(s=>(s.updatedAt||'')>t).length+db.students.filter(s=>s.updatedAt&&s.updatedAt>t).length;
+}
+function scheduleSync(){
+  if(!syncReady())return;
+  clearTimeout(syncTimer);syncTimer=setTimeout(()=>doSync(),2500);
+  setTimeout(renderSyncState,0);
+}
+function renderSyncState(){
+  const el=$('syncState');if(!el)return;
+  if(!syncReady()){el.classList.add('hidden');return}
+  el.classList.remove('hidden');
+  const n=pendingCount();
+  if(syncBusy){el.textContent='⟳ جارٍ المزامنة…';el.style.background='#ffffff1f'}
+  else if(db.sync.lastErr==='bad-secret'){el.textContent='⚠ الرمز السري غير صحيح';el.style.background='#b42318'}
+  else if(n&&!navigator.onLine){el.textContent=`⏳ ${n} بانتظار الإنترنت`;el.style.background='#9a5a05'}
+  else if(n||db.sync.lastErr){el.textContent=n?`⏳ ${n} بانتظار الإرسال`:'⚠ تعذّرت المزامنة';el.style.background='#9a5a05'}
+  else{el.textContent='☁ متزامن ✓';el.style.background='#16794d'}
+}
+async function doSync(manual){
+  if(!syncReady()){if(manual)toast('أدخل الرمز السري أولًا');return}
+  if(syncBusy){syncAgain=true;return}
+  if(!navigator.onLine){renderSyncState();if(manual)toast('لا يوجد اتصال بالإنترنت');return}
+  syncBusy=true;renderSyncState();
+  const start=new Date().toISOString();const first=!db.sync.pushedAt;const t=db.sync.pushedAt||'';
+  const payload={secret:db.sync.secret,since:db.sync.rev||0,
+    sessions:Object.values(db.sessions).filter(s=>(s.updatedAt||'')>t),
+    students:db.students.filter(s=>first||(s.updatedAt&&s.updatedAt>t)),
+    meta:{classes:Object.fromEntries(CLASSES.map(c=>[c.id,clsLabel(c.id)])),periods:PERIODS.map(p=>p.name),days:DAYS},
+    rebuild:first};
+  try{
+    const r=await fetch(syncUrl(),{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow'});
+    const d=await r.json();
+    if(!d.ok){db.sync.lastErr=d.error||'error';persist(true);if(manual)toast(d.error==='bad-secret'?'الرمز السري غير صحيح':'تعذّرت المزامنة');return}
+    let got=0;
+    (d.students||[]).forEach(s=>{const ex=db.students.find(x=>x.id===s.id);if(!ex){db.students.push(s);got++}else if((s.updatedAt||'')>(ex.updatedAt||'')){Object.assign(ex,s);got++}});
+    (d.sessions||[]).forEach(s=>{const ex=db.sessions[s.id];if(!ex||(s.updatedAt||'')>(ex.updatedAt||'')){db.sessions[s.id]=s;got++}});
+    db.sync.rev=Math.max(db.sync.rev||0,d.rev||0);db.sync.pushedAt=start;db.sync.lastOk=new Date().toISOString();db.sync.lastErr='';const sb=document.getElementById('syncBanner');if(sb)sb.remove();
+    persist(true);
+    if(got)refreshView();
+    if(manual)toast(got?`تمت المزامنة — وصل ${got} تحديث`:'تمت المزامنة ✓');
+  }catch(e){db.sync.lastErr='network';persist(true);if(manual)toast('تعذّر الاتصال بخدمة المزامنة')}
+  finally{syncBusy=false;renderSyncState();if(curTab==='backup')renderSyncCard();if(syncAgain){syncAgain=false;scheduleSync()}}
+}
+function refreshView(){
+  if(curTab==='roster'&&cur){if(document.activeElement!==$('rNote'))renderRoster()}
+  else if(curTab==='schedule')renderGrid();
+  else if(curTab==='reports')renderReport();
+  else if(curTab==='students')renderStudents();
+  else if(curTab==='backup')renderBackup();
+}
+function renderSyncCard(){
+  const info=$('syncInfo');if(!info)return;
+  $('syncUrl').value=db.sync.url||'';
+  if(document.activeElement!==$('syncSecret'))$('syncSecret').value=db.sync.secret||'';
+  if(!syncUrl()){info.innerHTML='<span class="tag w">لم تُربط خدمة المزامنة بعد</span>';return}
+  if(!db.sync.secret){info.innerHTML='<span class="tag w">أدخل الرمز السري لتفعيل المزامنة على هذا الجهاز</span>';return}
+  const last=db.sync.lastOk?`${dmy(new Date(db.sync.lastOk))} ${new Date(db.sync.lastOk).toLocaleTimeString('ar-JO',{hour:'2-digit',minute:'2-digit'})}`:'لم تتم بعد';
+  const err=db.sync.lastErr==='bad-secret'?' — <span class="tag b">الرمز السري غير صحيح</span>':db.sync.lastErr?' — <span class="tag w">آخر محاولة لم تنجح، سيُعاد تلقائيًا</span>':'';
+  info.innerHTML=`<span class="tag ok">المزامنة مفعّلة</span> آخر مزامنة ناجحة: <b>${last}</b>${err}<br><span class="muted">بانتظار الإرسال: ${pendingCount()}</span>`;
+}
+$('syncSave').onclick=()=>{
+  const sec=$('syncSecret').value.trim().toLowerCase();const url=$('syncUrl').value.trim();
+  if(url&&!/^https:\/\/script\.google(usercontent)?\.com\//.test(url))return toast('رابط الخدمة غير صحيح');
+  db.sync.url=url;
+  if(sec!==db.sync.secret){db.sync.secret=sec;db.sync.rev=0;db.sync.pushedAt=null;db.sync.lastErr=''}
+  persist(true);renderSyncCard();renderSyncState();
+  if(syncReady()){toast('جارٍ التفعيل…');doSync(true)}
+};
+$('syncNow').onclick=()=>doSync(true);
+$('syncState').onclick=()=>{showTab('backup');doSync(true)};
+window.addEventListener('online',()=>scheduleSync());
+window.addEventListener('offline',renderSyncState);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&syncReady())doSync()});
+setInterval(()=>{if(syncReady()&&document.visibilityState==='visible')doSync()},120000);
+
 /* ================= بدء التشغيل ================= */
 bindImport();
 showTab('schedule');
+renderSyncState();
+if(syncReady())doSync();
+else if(syncUrl()&&!db.sync.secret){const el=document.createElement('div');$('backupBanner').after(el);el.id='syncBanner';el.className='banner info noprint';el.innerHTML='<span>☁ المزامنة بين الأجهزة جاهزة. أدخل الرمز السري مرة واحدة على هذا الجهاز لتفعيلها.</span><button class="primary" id="bnSync">تفعيل المزامنة</button>';$('bnSync').onclick=()=>{el.remove();showTab('backup')}}
 setInterval(()=>{if(curTab==='schedule')renderGrid()},60000);
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){navigator.serviceWorker.register('sw.js').catch(()=>{})}
 </script>
