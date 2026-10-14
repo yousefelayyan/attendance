@@ -570,8 +570,8 @@ function renderStudents(){
   $('stList').querySelectorAll('.srow').forEach(r=>{
     const st=db.students.find(x=>x.id===r.dataset.id);const[cb,nm,uid]=r.querySelectorAll('input');
     r.querySelectorAll('[data-cls]').forEach(x=>x.onchange=()=>{const c=x.dataset.cls;const ex=new Set(st.exclude||[]);if(x.checked)ex.delete(c);else ex.add(c);st.exclude=[...ex];st.updatedAt=new Date().toISOString();persist();x.parentElement.classList.toggle('off',!x.checked);toast(x.checked?`أُضيف إلى ${shortCourse(K[c])}`:`أُزيل من ${shortCourse(K[c])} فقط`)});
-    cb.onchange=()=>{st.active=cb.checked;st.updatedAt=new Date().toISOString();persist();r.classList.toggle('off',!cb.checked)};
-    nm.onchange=()=>{const v=nm.value.trim();if(!v){nm.value=st.name;return}st.name=v;if(st.review){delete st.review;delete st.note;nm.classList.remove('rv')}st.updatedAt=new Date().toISOString();persist();toast('تم حفظ الاسم')};
+    cb.onchange=()=>{st.active=cb.checked;if(cb.checked&&st.note&&st.note.startsWith('مشطوب')){delete st.note;const n=r.querySelector('small.muted');if(n)n.textContent=''}st.updatedAt=new Date().toISOString();persist();r.classList.toggle('off',!cb.checked)};
+    nm.onchange=()=>{const v=nm.value.trim();if(!v){nm.value=st.name;return}st.name=v;if(st.note&&st.note.startsWith('مشطوب')&&st.active!==false){delete st.note;const n=r.querySelector('small.muted');if(n)n.textContent=''}if(st.review){delete st.review;delete st.note;nm.classList.remove('rv')}st.updatedAt=new Date().toISOString();persist();toast('تم حفظ الاسم')};
     uid.onchange=()=>{st.uid=uid.value.trim();st.updatedAt=new Date().toISOString();persist()};
   });
 }
