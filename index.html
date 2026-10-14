@@ -631,7 +631,7 @@ function renderBanner(){
 }
 
 /* ================= المزامنة مع Google Sheets ================= */
-const SYNC_URL=''; // رابط خدمة Apps Script — يُضاف بعد نشرها
+const SYNC_URL='https://script.google.com/macros/s/AKfycbzFI-DVnDm7QbMPGacPkPDlJU2ezbM03Nh9eVGtfVpW_VCMua_pSGo2pNVrKf47qU_oxA/exec'; // خدمة Apps Script على حساب المدرس
 const syncUrl=()=>(db.sync.url||SYNC_URL||'').trim();
 let syncBusy=false,syncAgain=false,syncTimer=null;
 function syncReady(){return !!(syncUrl()&&db.sync.secret)}
