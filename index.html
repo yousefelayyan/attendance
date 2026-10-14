@@ -111,10 +111,14 @@ table.rep{border-collapse:collapse;width:100%}
 .mx .P{color:var(--p)}.mx .A{color:var(--a);background:#fdf0ef}.mx .L{color:var(--l)}
 .mx th small{display:block;font-weight:400;font-size:11px}
 /* students admin */
-.srow{display:grid;grid-template-columns:34px 1fr 150px 92px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #edf1f4}
+.srow{display:grid;grid-template-columns:34px 1fr 150px minmax(92px,auto);gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #edf1f4}
 .srow input[type=checkbox]{width:22px;height:22px;min-height:0}
 .srow.off input.nm{text-decoration:line-through;color:var(--muted)}
 .srow .rv{outline:2px solid #f0c060}
+.cls-tg{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.cls-tg label{display:flex;align-items:center;gap:5px;margin:0;font-size:13px;color:var(--ink);background:var(--soft);border-radius:8px;padding:6px 9px;cursor:pointer;white-space:nowrap}
+.cls-tg label.off{opacity:.55;text-decoration:line-through}
+.cls-tg input{width:18px;height:18px;min-height:0;margin:0}
 .empty{text-align:center;padding:30px 14px}
 .empty h2{color:var(--navy)}
 footer{font-size:12px;color:var(--muted);text-align:center;padding:16px}
@@ -123,7 +127,7 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:16px}
 @media (max-width:640px){
   .seg button{min-width:58px;padding:10px 4px;font-size:14px}
   .stu .nm b{font-size:15px}
-  .srow{grid-template-columns:30px 1fr 80px}
+  .srow{grid-template-columns:30px 1fr auto}
   .srow .uid{display:none}
 }
 @media print{
@@ -233,10 +237,12 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:16px}
         <div><button data-import>استيراد ملف طلاب</button></div>
       </div>
       <p class="muted">عدّل الاسم أو الرقم الجامعي مباشرة، ويُحفظ التعديل تلقائيًا. إزالة علامة ✓ تُخفي الطالب من قائمة الحضور دون حذف سجله. الأسماء المحاطة بإطار أصفر مضافة بخط اليد في الكشف وتحتاج مراجعة.</p>
+      <p class="muted hidden" id="stHint">☑ هذه الشعبة تدرس أكثر من مادة: أزل علامة المادة بجانب الطالب ليختفي من قائمة حضورها فقط ويبقى في المادة الأخرى.</p>
       <div id="stList"></div>
       <div class="row" style="margin-top:12px">
         <div class="f" style="flex:2"><label>إضافة طالب جديد</label><input id="stNewName" placeholder="اسم الطالب الرباعي"></div>
         <div class="f"><label>الرقم الجامعي (اختياري)</label><input id="stNewUid" inputmode="numeric"></div>
+        <div class="f" id="stNewCls"></div>
         <div><button class="primary" id="stAdd">إضافة</button></div>
       </div>
     </div>
@@ -351,6 +357,11 @@ const weekStart=d=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),1800)}
 const studentsOf=g=>db.students.filter(s=>s.groupId===g);
 const activeOf=g=>studentsOf(g).filter(s=>s.active!==false);
+// طلاب مادة معيّنة: طلاب الشعبة الفعّالون ما عدا من أُزيل من هذه المادة
+const inClass=(st,cls)=>!(st.exclude||[]).includes(cls);
+const rosterOf=cls=>activeOf(K[cls].group).filter(st=>inClass(st,cls));
+const classesOfGroup=g=>CLASSES.filter(c=>c.group===g);
+const shortCourse=c=>c.course.replace(/^محاسبة\s+/,'');
 const sid=(date,slotId)=>`${date}|${slotId}`;
 const sessionDate=(ws,day)=>iso(addDays(ws,day));
 
@@ -372,7 +383,7 @@ document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>showTab(b.dat
 let ws=weekStart(new Date());
 function slotStatus(date,slot){
   const s=db.sessions[sid(date,slot.id)];if(!s||s.deleted)return null;
-  const list=activeOf(K[slot.cls].group);
+  const list=rosterOf(slot.cls);
   let a=0,l=0,u=0;list.forEach(st=>{const m=s.marks[st.id];if(m==='A')a++;else if(m==='L')l++;else if(!m)u++});
   return{a,l,u,total:list.length};
 }
@@ -407,7 +418,7 @@ function renderGrid(){
   h+='</tbody>';
   $('grid').innerHTML=h;
   $('grid').querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>openRoster(b.dataset.slot,b.dataset.date));
-  $('legend').innerHTML=CLASSES.map(c=>`<span class="c-${c.id}">${esc(clsLabel(c.id))} — ${activeOf(c.group).length} طالب</span>`).join('');
+  $('legend').innerHTML=CLASSES.map(c=>`<span class="c-${c.id}">${esc(clsLabel(c.id))} — ${rosterOf(c.id).length} طالب</span>`).join('');
   renderBanner();
 }
 $('wPrev').onclick=()=>{ws=addDays(ws,-7);renderGrid()};
@@ -437,7 +448,7 @@ function renderRoster(){
   const sl=S[cur.slotId],c=K[sl.cls],p=PERIODS[sl.period-1],d=parseIso(cur.date);
   $('rTitle').textContent=`${c.course} — ${G[c.group].name}`;
   $('rChips').innerHTML=`<span class="chip">${DAYS[sl.day]} ${dmy(d)}</span><span class="chip">المحاضرة ${p.name} (${p.t})</span><span class="chip${sl.online?' on':''}">${sl.online?'أونلاين':esc(sl.room)}</span>`;
-  const list=activeOf(c.group);const s=getSession(false);const marks=s?s.marks:{};
+  const list=rosterOf(sl.cls);const s=getSession(false);const marks=s?s.marks:{};
   if(!list.length){$('rList').innerHTML='<div class="empty"><p>لا يوجد طلاب في هذه الشعبة على هذا الجهاز.</p><button class="primary" data-import>استيراد ملف الطلاب</button></div>';bindImport()}
   else $('rList').innerHTML=list.map((st,i)=>{
     const m=marks[st.id]||'';
@@ -466,12 +477,12 @@ function mark(stId,v,row){
   updateCounts();
 }
 function updateCounts(){
-  const c=K[S[cur.slotId].cls];const list=activeOf(c.group);const s=getSession(false);const mk=s?s.marks:{};
+  const list=rosterOf(S[cur.slotId].cls);const s=getSession(false);const mk=s?s.marks:{};
   let n={P:0,A:0,L:0,U:0};list.forEach(st=>n[mk[st.id]||'U']++);
   $('rCounts').innerHTML=`<div class="k-p"><b>${n.P}</b>حاضر</div><div class="k-a"><b>${n.A}</b>غائب</div><div class="k-l"><b>${n.L}</b>متأخر</div><div class="k-u"><b>${n.U}</b>لم يُحدَّد</div>`;
 }
 $('rAllP').onclick=()=>{
-  const s=getSession(true);const list=activeOf(K[S[cur.slotId].cls].group);
+  const s=getSession(true);const list=rosterOf(S[cur.slotId].cls);
   list.forEach(st=>{if(!s.marks[st.id])s.marks[st.id]='P'});
   s.updatedAt=new Date().toISOString();persist();renderRoster();toast('تم تحديد غير المحدَّدين حاضرين');
 };
@@ -503,7 +514,7 @@ function computeRep(cls){
     const rec=P+A+L;const pct=ss.length?A/ss.length*100:0;
     const lvl=pct>=db.settings.ban?'b':pct>=db.settings.warn?'w':'';
     return{st,P,A,L,U,pct,lvl};
-  }).filter(r=>r.st.active!==false||r.P+r.A+r.L>0);
+  }).filter(r=>(r.st.active!==false&&inClass(r.st,cls))||r.P+r.A+r.L>0);
   return{ss,rows};
 }
 const fmtPct=x=>(Math.round(x*10)/10).toString();
@@ -548,14 +559,17 @@ $('repPrint').onclick=()=>window.print();
 /* ================= إدارة الطلاب ================= */
 function renderStudents(){
   const el=$('stGroup');if(!el.options.length)el.innerHTML=GROUPS.map(g=>`<option value="${g.id}">${esc(g.name)} — ${esc(CLASSES.filter(c=>c.group===g.id).map(c=>c.course).join(' + '))}</option>`).join('');
-  const list=studentsOf(el.value);
+  const list=studentsOf(el.value);const cls=classesOfGroup(el.value);const multi=cls.length>1;
+  $('stNewCls').innerHTML=multi?`<label>المواد</label><div class="cls-tg">${cls.map(c=>`<label><input type="checkbox" data-newcls="${c.id}" checked>${esc(shortCourse(c))}</label>`).join('')}</div>`:'';
+  $('stHint').classList.toggle('hidden',!multi);
   $('stList').innerHTML=list.length?list.map((s,i)=>`<div class="srow${s.active===false?' off':''}" data-id="${s.id}">
     <input type="checkbox" ${s.active!==false?'checked':''} title="فعّال">
     <input class="nm${s.review?' rv':''}" value="${esc(s.name)}">
     <input class="uid" value="${esc(s.uid||'')}" placeholder="الرقم الجامعي" inputmode="numeric">
-    <small class="muted">${s.note?esc(s.note):''}</small></div>`).join(''):'<p class="muted">لا يوجد طلاب في هذه الشعبة. استورد ملف الطلاب أو أضف الأسماء يدويًا.</p>';
+    <div>${multi?`<div class="cls-tg">${cls.map(c=>`<label class="${inClass(s,c.id)?'':'off'}"><input type="checkbox" data-cls="${c.id}" ${inClass(s,c.id)?'checked':''}>${esc(shortCourse(c))}</label>`).join('')}</div>`:''}<small class="muted">${s.note?esc(s.note):''}</small></div></div>`).join(''):'<p class="muted">لا يوجد طلاب في هذه الشعبة. استورد ملف الطلاب أو أضف الأسماء يدويًا.</p>';
   $('stList').querySelectorAll('.srow').forEach(r=>{
     const st=db.students.find(x=>x.id===r.dataset.id);const[cb,nm,uid]=r.querySelectorAll('input');
+    r.querySelectorAll('[data-cls]').forEach(x=>x.onchange=()=>{const c=x.dataset.cls;const ex=new Set(st.exclude||[]);if(x.checked)ex.delete(c);else ex.add(c);st.exclude=[...ex];st.updatedAt=new Date().toISOString();persist();x.parentElement.classList.toggle('off',!x.checked);toast(x.checked?`أُضيف إلى ${shortCourse(K[c])}`:`أُزيل من ${shortCourse(K[c])} فقط`)});
     cb.onchange=()=>{st.active=cb.checked;st.updatedAt=new Date().toISOString();persist();r.classList.toggle('off',!cb.checked)};
     nm.onchange=()=>{const v=nm.value.trim();if(!v){nm.value=st.name;return}st.name=v;if(st.review){delete st.review;delete st.note;nm.classList.remove('rv')}st.updatedAt=new Date().toISOString();persist();toast('تم حفظ الاسم')};
     uid.onchange=()=>{st.uid=uid.value.trim();st.updatedAt=new Date().toISOString();persist()};
@@ -565,7 +579,9 @@ $('stGroup').onchange=renderStudents;
 $('stAdd').onclick=()=>{
   const name=$('stNewName').value.trim();if(!name)return toast('اكتب اسم الطالب');
   const g=$('stGroup').value;
-  db.students.push({id:`${g}-n${Date.now().toString(36)}`,groupId:g,name,uid:$('stNewUid').value.trim(),active:true,updatedAt:new Date().toISOString()});
+  const exclude=[...document.querySelectorAll('[data-newcls]')].filter(x=>!x.checked).map(x=>x.dataset.newcls);
+  if(classesOfGroup(g).length>1&&exclude.length===classesOfGroup(g).length)return toast('اختر مادة واحدة على الأقل');
+  db.students.push({id:`${g}-n${Date.now().toString(36)}`,groupId:g,name,uid:$('stNewUid').value.trim(),active:true,exclude,updatedAt:new Date().toISOString()});
   persist();$('stNewName').value='';$('stNewUid').value='';renderStudents();toast('تمت الإضافة');
 };
 
