@@ -632,6 +632,8 @@ function renderGrades(){
   }</tbody></table></div>`;
   $('grOut').querySelectorAll('input.g').forEach(inp=>{
     inp.onchange=()=>saveGrade(inp);
+    inp.oninput=()=>{clearTimeout(inp._t);inp._t=setTimeout(()=>saveGrade(inp,true),400)};
+    inp.onblur=()=>{clearTimeout(inp._t);saveGrade(inp)};
     inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();saveGrade(inp);const tr=inp.closest('tr').nextElementSibling;const nx=tr&&tr.querySelector(`input[data-a="${inp.dataset.a}"]`);if(nx){nx.focus();nx.select()}else inp.blur()}};
   });
   $('grOut').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
@@ -646,17 +648,22 @@ function renderGrades(){
     a.name=nm.trim();a.max=m;a.updatedAt=new Date().toISOString();persist();renderGrades();
   });
 }
-function saveGrade(inp){
+function saveGrade(inp,quiet){
+  if(!inp||!inp.isConnected||!inp.closest('tr'))return;
   const a=db.assessments[inp.dataset.a];const stId=inp.closest('tr').dataset.st;
   const raw=inp.value.trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace('٫','.').replace(',','.');
   a.marks=a.marks||{};
   if(raw===''){if(a.marks[stId]===undefined)return;delete a.marks[stId];inp.classList.remove('bad')}
-  else{const v=parseFloat(raw);if(isNaN(v)||v<0||v>+a.max){inp.classList.add('bad');toast(`العلامة يجب أن تكون بين 0 و ${fmtN(+a.max)}`);return}
-    inp.classList.remove('bad');if(a.marks[stId]===v)return;a.marks[stId]=v;inp.value=fmtN(v)}
+  else{const v=parseFloat(raw);if(isNaN(v)||v<0||v>+a.max){inp.classList.add('bad');if(!quiet)toast(`العلامة يجب أن تكون بين 0 و ${fmtN(+a.max)}`);return}
+    inp.classList.remove('bad');if(a.marks[stId]===v)return;a.marks[stId]=v;if(!quiet)inp.value=fmtN(v)}
   a.updatedAt=new Date().toISOString();persist();
   const cls=a.cls;const st=db.students.find(x=>x.id===stId);const td=inp.closest('tr').querySelector('.tot');if(td&&st)td.textContent=fmtN(gradeRows(cls).tot(st));
 }
 $('grClass').onchange=renderGrades;
+function flushGrade(){const el=document.activeElement;if(el&&el.classList&&el.classList.contains('g')){clearTimeout(el._t);saveGrade(el,true)}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushGrade()});
+window.addEventListener('pagehide',flushGrade);
+document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('pointerdown',flushGrade));
 $('grAdd').onclick=()=>{
   const cls=$('grClass').value;const name=$('grName').value.trim();
   const m=parseFloat($('grMax').value.replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace('٫','.'));
