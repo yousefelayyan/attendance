@@ -14,7 +14,7 @@
 <style>
 :root{
   --navy:#173b57;--navy2:#24557b;--bg:#f3f6f9;--card:#fff;--ink:#16293a;--muted:#5d6e7c;--line:#d9e1e8;--soft:#eef3f7;
-  --p:#16794d;--p-bg:#e2f5ea;--a:#b42318;--a-bg:#fde7e5;--l:#9a5a05;--l-bg:#fff1d6;--today:#fff8e6;--online:#5b3fa3;
+  --p:#16794d;--p-bg:#e2f5ea;--a:#b42318;--a-bg:#fde7e5;--l:#9a5a05;--l-bg:#fff1d6;--today:#fff8e6;--online:#5b3fa3;--s:#1f5fa8;--s-bg:#e3eefb;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Arabic","Segoe UI",Tahoma,Arial,sans-serif;font-size:16px}
@@ -80,7 +80,7 @@ table.grid{border-collapse:collapse;width:100%;min-width:780px;table-layout:fixe
 .counts{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
 .counts div{flex:1;min-width:90px;text-align:center;border-radius:12px;padding:8px;font-size:13px}
 .counts b{display:block;font-size:22px}
-.k-p{background:var(--p-bg);color:var(--p)}.k-a{background:var(--a-bg);color:var(--a)}.k-l{background:var(--l-bg);color:var(--l)}.k-u{background:var(--soft);color:var(--muted)}
+.k-p{background:var(--p-bg);color:var(--p)}.k-a{background:var(--a-bg);color:var(--a)}.k-l{background:var(--l-bg);color:var(--l)}.k-u{background:var(--soft);color:var(--muted)}.k-s{background:var(--s-bg);color:var(--s)}
 .tools{display:flex;gap:8px;flex-wrap:wrap}
 .tools button{flex:1;min-width:140px}
 .stu{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid #edf1f4}
@@ -95,7 +95,8 @@ table.grid{border-collapse:collapse;width:100%;min-width:780px;table-layout:fixe
 .seg button.sp.on{background:var(--p);border-color:var(--p);color:#fff}
 .seg button.sa.on{background:var(--a);border-color:var(--a);color:#fff}
 .seg button.sl.on{background:var(--l);border-color:var(--l);color:#fff}
-.stu.s-P{background:#f6fcf8}.stu.s-A{background:#fff7f6}.stu.s-L{background:#fffbf2}
+.seg button.ss.on{background:var(--s);border-color:var(--s);color:#fff}
+.stu.s-P{background:#f6fcf8}.stu.s-A{background:#fff7f6}.stu.s-L{background:#fffbf2}.stu.s-S{background:#f4f8fe}
 .nextbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .nextbar button{flex:1;min-width:200px}
 /* tables */
@@ -108,7 +109,7 @@ table.rep{border-collapse:collapse;width:100%}
 .tag{display:inline-block;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700}
 .tag.w{background:var(--l-bg);color:var(--l)}.tag.b{background:var(--a-bg);color:var(--a)}.tag.ok{background:var(--p-bg);color:var(--p)}
 .mx td.m{text-align:center;font-weight:700;padding:6px}
-.mx .P{color:var(--p)}.mx .A{color:var(--a);background:#fdf0ef}.mx .L{color:var(--l)}
+.mx .P{color:var(--p)}.mx .A{color:var(--a);background:#fdf0ef}.mx .L{color:var(--l)}.mx .S{color:var(--s);background:#eef4fc}
 .mx th small{display:block;font-weight:400;font-size:11px}
 /* students admin */
 .srow{display:grid;grid-template-columns:34px 1fr 150px minmax(92px,auto);gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #edf1f4}
@@ -138,7 +139,10 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:16px}
 .toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#16293a;color:#fff;padding:10px 18px;border-radius:24px;font-size:14px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
 @media (max-width:640px){
-  .seg button{min-width:58px;padding:10px 4px;font-size:14px}
+  .seg{gap:4px}
+  .seg button{min-width:0;flex:1;padding:10px 3px;font-size:13px}
+  .stu{flex-wrap:wrap}
+  .stu .seg{flex-basis:100%}
   .stu .nm b{font-size:15px}
   .srow{grid-template-columns:30px 1fr auto}
   .srow .uid{display:none}
@@ -345,12 +349,14 @@ const CLASSES=[
 // [اليوم 0=الأحد, الحصة, المادة, القاعة]
 const SLOTS=[
   [0,1,'k2','C 105'],[0,2,'k2','C 105'],[0,3,'k5','Lab 6'],[0,4,'k5','Lab 6'],[0,5,'k3','Lab 7'],
-  [1,3,'k1','قاعة المكتبة'],[1,4,'k1','قاعة المكتبة'],[1,5,'k4','C 105'],[1,6,'k4','C 105'],[1,7,'k6','C 103'],
+  [1,3,'k1','C 107'],[1,4,'k1','C 107'],[1,5,'k4','قاعة المكتبة'],[1,6,'k4','قاعة المكتبة'],[1,7,'k6','C 103'],
   // الثلاثاء: نُقلت من السادسة/السابعة/الثامنة إلى الأولى/الثانية/الثالثة (المعرّف القديم محفوظ لتبقى السجلات السابقة مرتبطة بها)
   [2,1,'k2','Lab 4','d2p6'],[2,2,'k3','Lab 4','d2p7'],[2,3,'k3','Lab 4','d2p8'],
   [3,1,'k5','Lab 6'],[3,2,'k5','Lab 6'],[3,3,'k1','C 209'],[3,4,'k4','C 107'],
   // الخميس الأولى (أخلاقيات مهنة المحاسبة) أُلغيت — سجلاتها السابقة تبقى محسوبة في التقارير
-  [4,2,'k1','ONLINE'],[4,3,'k2','ONLINE'],[4,5,'k4','ONLINE'],[4,6,'k6','ONLINE'],[4,8,'k3','ONLINE']
+  [4,2,'k1','ONLINE'],[4,3,'k2','ONLINE'],[4,5,'k4','ONLINE'],[4,6,'k6','ONLINE'],
+  // الخميس: محاضرة أعمال 1 ش 1 نُقلت من الثامنة إلى الرابعة (المعرّف القديم محفوظ لتبقى سجلاتها مرتبطة بها)
+  [4,4,'k3','ONLINE','d4p8']
 ].map(([day,period,cls,room,id])=>({id:id||`d${day}p${period}`,day,period,cls,room,online:room==='ONLINE'}));
 const G=Object.fromEntries(GROUPS.map(g=>[g.id,g]));
 const K=Object.fromEntries(CLASSES.map(c=>[c.id,c]));
@@ -358,7 +364,8 @@ const S=Object.fromEntries(SLOTS.map(s=>[s.id,s]));
 const SLOT_AT=Object.fromEntries(SLOTS.map(s=>[`${s.day}-${s.period}`,s]));
 const gShort=id=>G[id]?.short||G[id]?.name||id;
 const clsLabel=id=>`${K[id].course} — ${gShort(K[id].group)}`;
-const ST={P:'حاضر',A:'غائب',L:'متأخر'};
+const ST={P:'حاضر',A:'غائب',S:'مرضي',L:'متأخر'};
+const STL={P:'ح',A:'غ',S:'مر',L:'ت'}; // اختصارات الجدول التفصيلي
 
 /* ================= أسماء الطلاب (مفرّغة من الكشوف الورقية) ================= */
 const EMBEDDED_STUDENTS=[{"id":"g1-s01","groupId":"g1","name":"اسماء محمود توفيق طه","uid":"","active":true},{"id":"g1-s02","groupId":"g1","name":"ايه عبيد محمد الشاوي","uid":"","active":true},{"id":"g1-s03","groupId":"g1","name":"بتول خالد وليد ابو طوق","uid":"","active":true},{"id":"g1-s04","groupId":"g1","name":"بشار محمد علي الكدش","uid":"","active":true},{"id":"g1-s05","groupId":"g1","name":"بيسان زيدان حماد العجله","uid":"","active":true},{"id":"g1-s06","groupId":"g1","name":"تالا نبيل نمر جمعه","uid":"","active":true},{"id":"g1-s07","groupId":"g1","name":"جنى محمود محمد ابو زيد","uid":"","active":true},{"id":"g1-s08","groupId":"g1","name":"جوري فارس سليمان الحويطات","uid":"","active":true},{"id":"g1-s09","groupId":"g1","name":"رشا كمال سليمان ابو سبيتان","uid":"","active":true},{"id":"g1-s10","groupId":"g1","name":"ريم احمد شكري كبسه","uid":"","active":false,"note":"مشطوب في الكشف الورقي"},{"id":"g1-s11","groupId":"g1","name":"زين راتب محمد الحسنات","uid":"","active":true},{"id":"g1-s12","groupId":"g1","name":"سجى هاني ذيب الحاج محمد","uid":"","active":true},{"id":"g1-s13","groupId":"g1","name":"سدين شادي محمد مروان الكركي","uid":"","active":true},{"id":"g1-s14","groupId":"g1","name":"سلسبيل محمد فهمي ابو ذراع","uid":"","active":true},{"id":"g1-s15","groupId":"g1","name":"سلسبيل جميل احمد بدر","uid":"","active":true},{"id":"g1-s16","groupId":"g1","name":"سندس محمد فهمي الدجاني","uid":"","active":false,"note":"مشطوب في الكشف الورقي"},{"id":"g1-s17","groupId":"g1","name":"سوسن احمد صبري الهريدي","uid":"","active":true},{"id":"g1-s18","groupId":"g1","name":"شهد محمد عدنان ابو شقفه","uid":"","active":true},{"id":"g1-s19","groupId":"g1","name":"ضحى مالك مصطفى الخواجا","uid":"","active":true},{"id":"g1-s20","groupId":"g1","name":"عائشه ابراهيم صالح العابودي","uid":"","active":true},{"id":"g1-s21","groupId":"g1","name":"عبد الرحمن ياسر فارس ابو جامع","uid":"","active":true},{"id":"g1-s22","groupId":"g1","name":"فارس محمد عبد الجبار ابراهيم","uid":"","active":true},{"id":"g1-s23","groupId":"g1","name":"كنان مصطفى خالد ابو صيام","uid":"","active":true},{"id":"g1-s24","groupId":"g1","name":"لانا امجد عبد اللطيف حجة","uid":"","active":true},{"id":"g1-s25","groupId":"g1","name":"ليليان احمد حسن عكه","uid":"","active":true},{"id":"g1-s26","groupId":"g1","name":"ليندا ايمن محمد الجواوده","uid":"","active":true},{"id":"g1-s27","groupId":"g1","name":"محمد رائد اسماعيل علان","uid":"","active":false,"note":"مشطوب في الكشف الورقي"},{"id":"g1-s28","groupId":"g1","name":"محمد رمضان علي ابو هدروس","uid":"","active":true},{"id":"g1-s29","groupId":"g1","name":"محمد علاء محمد خابور","uid":"","active":true},{"id":"g1-s30","groupId":"g1","name":"مرح حموده عوده النجيلي","uid":"","active":true},{"id":"g1-s31","groupId":"g1","name":"ملاك محمد علي سليمان","uid":"","active":true},{"id":"g1-s32","groupId":"g1","name":"ميره فراس بشير خير عدوي","uid":"","active":true},{"id":"g1-s33","groupId":"g1","name":"ناديه سامي فؤاد زيتون","uid":"","active":true},{"id":"g1-s34","groupId":"g1","name":"هبه محمد رسمي طبازه","uid":"","active":true},{"id":"g1-s35","groupId":"g1","name":"هديل اسامه امين عفانه","uid":"","active":true},{"id":"g1-s36","groupId":"g1","name":"يامن مصطفى محمود الهور","uid":"","active":true},{"id":"g1-s37","groupId":"g1","name":"نادا … (اسم مضاف بخط اليد — أكمل الاسم)","uid":"","active":true,"review":true,"note":"مضاف بخط اليد في الكشف — راجع الاسم"},{"id":"g2-s01","groupId":"g2","name":"احمد خير محمد خير","uid":"","active":true},{"id":"g2-s02","groupId":"g2","name":"احمد محمد احمد الخالص","uid":"","active":true},{"id":"g2-s03","groupId":"g2","name":"اسلام ماجد عبد ربه عديه","uid":"","active":true},{"id":"g2-s04","groupId":"g2","name":"ايات اياد فريد الرجبي","uid":"","active":true},{"id":"g2-s05","groupId":"g2","name":"ايه ناصر يعقوب ابو محظيه","uid":"","active":true},{"id":"g2-s06","groupId":"g2","name":"بيان وسام يوسف محمد","uid":"","active":true},{"id":"g2-s07","groupId":"g2","name":"تسنيم زياد علي العبسي","uid":"","active":true},{"id":"g2-s08","groupId":"g2","name":"حلميه صلاح يوسف محي الدين","uid":"","active":true},{"id":"g2-s09","groupId":"g2","name":"دارين رائد محمود خير الدين","uid":"","active":true},{"id":"g2-s10","groupId":"g2","name":"روان نضال علي الزبيدي","uid":"","active":true},{"id":"g2-s11","groupId":"g2","name":"ريماس كمال احمد ابو لاوي","uid":"","active":true},{"id":"g2-s12","groupId":"g2","name":"ساره احمد محمد عوض الله","uid":"","active":true},{"id":"g2-s13","groupId":"g2","name":"سبأ زياد صالح محيسن","uid":"","active":true},{"id":"g2-s14","groupId":"g2","name":"سديل زيد ابراهيم ابو لوز","uid":"","active":true},{"id":"g2-s15","groupId":"g2","name":"سدين علاء جبر جوابره","uid":"","active":true},{"id":"g2-s16","groupId":"g2","name":"سدين محمد احمد ابو حميد","uid":"","active":true},{"id":"g2-s17","groupId":"g2","name":"سهام نبيل حسن الزق","uid":"","active":true},{"id":"g2-s18","groupId":"g2","name":"شهد اياد احمد ابو فارس","uid":"","active":true},{"id":"g2-s19","groupId":"g2","name":"شهد عيسى خليل زعتر","uid":"","active":true},{"id":"g2-s20","groupId":"g2","name":"شيماء محمد سامي الوحيدي","uid":"","active":true},{"id":"g2-s21","groupId":"g2","name":"ضحى ايمن عبد الجواد السكافي","uid":"","active":true},{"id":"g2-s22","groupId":"g2","name":"عبد الرحمن رياض عمر ابو هيبه","uid":"","active":true},{"id":"g2-s23","groupId":"g2","name":"عبد الرحمن سلطان عبد الرازق حسنين","uid":"","active":true},{"id":"g2-s24","groupId":"g2","name":"غرام اسامه محمد الحوراني","uid":"","active":true},{"id":"g2-s25","groupId":"g2","name":"فرح ابراهيم حسن شرف","uid":"","active":true},{"id":"g2-s26","groupId":"g2","name":"فرح اسماعيل عطيه ابو الشيخ","uid":"","active":true},{"id":"g2-s27","groupId":"g2","name":"لجين محمود محمد صالح الخواجه","uid":"","active":true},{"id":"g2-s28","groupId":"g2","name":"مايا محمد احمد نوفل","uid":"","active":true},{"id":"g2-s29","groupId":"g2","name":"مرام فرحان سلمان الجراوين","uid":"","active":true},{"id":"g2-s30","groupId":"g2","name":"ملك محمود بهجت يوسف عبد الله","uid":"","active":true},{"id":"g2-s31","groupId":"g2","name":"ميس عمر محمود علي الحاج","uid":"","active":true},{"id":"g2-s32","groupId":"g2","name":"ندين هيثم توفيق الدريني","uid":"","active":true},{"id":"g2-s33","groupId":"g2","name":"نغم علاء علي عبد الفتاح","uid":"","active":true},{"id":"g2-s34","groupId":"g2","name":"هبه محمد سعيد الدغواني","uid":"","active":true},{"id":"g2-s35","groupId":"g2","name":"ياسمينا محمد سمير كعوش","uid":"","active":false,"note":"مشطوب في الكشف الورقي"},{"id":"g2-s36","groupId":"g2","name":"يزن طارق فهيد سروجي","uid":"","active":true},{"id":"g3-s01","groupId":"g3","name":"ابراهيم سلطان حسن محمود","uid":"22672069001","active":true},{"id":"g3-s02","groupId":"g3","name":"احمد محمد حسن يحيى","uid":"22672069101","active":true},{"id":"g3-s03","groupId":"g3","name":"اسراء مصطفى خالد عبيد","uid":"22672069032","active":true},{"id":"g3-s04","groupId":"g3","name":"افنان بسام ابراهيم ابو حماد","uid":"22672069105","active":true},{"id":"g3-s05","groupId":"g3","name":"ايمان اسماعيل احمد عبد القادر","uid":"22672069005","active":true},{"id":"g3-s06","groupId":"g3","name":"تمارا مصطفى احمد الغوطي","uid":"22672069109","active":true},{"id":"g3-s07","groupId":"g3","name":"جنى نادر عبد الرحيم الشاعر","uid":"22672069113","active":true},{"id":"g3-s08","groupId":"g3","name":"حازم علي كامل ابو روك","uid":"22672069036","active":true},{"id":"g3-s09","groupId":"g3","name":"حمزة كنعان حسني كنعان","uid":"22672069009","active":true},{"id":"g3-s10","groupId":"g3","name":"راما محمد ابراهيم ابونقيرة","uid":"22672069040","active":true},{"id":"g3-s11","groupId":"g3","name":"رحمة قبلان اسماعيل الثوابيه","uid":"22672069117","active":true},{"id":"g3-s12","groupId":"g3","name":"رغد عبد الرحمن عمر سعد","uid":"22672069013","active":true},{"id":"g3-s13","groupId":"g3","name":"ريم خليل غازي متولي","uid":"22672069121","active":true},{"id":"g3-s14","groupId":"g3","name":"سديل وليد عثمان قاسم","uid":"22672069125","active":true},{"id":"g3-s15","groupId":"g3","name":"سعاد رائد محمد العسود","uid":"22672069017","active":true},{"id":"g3-s16","groupId":"g3","name":"شهد خليل محمود مزهر","uid":"22672069044","active":true},{"id":"g3-s17","groupId":"g3","name":"شهد عامر امين الصالحي","uid":"22672069129","active":true},{"id":"g3-s18","groupId":"g3","name":"عائشه حسن احمد سلمان","uid":"22672069048","active":true},{"id":"g3-s19","groupId":"g3","name":"عبدالله صالح عبدالله اشتيوي","uid":"22672069133","active":true},{"id":"g3-s20","groupId":"g3","name":"غزل فرج نصر الجخلب","uid":"22672069021","active":true},{"id":"g3-s21","groupId":"g3","name":"فداء محمد حسن السحلي","uid":"22672069137","active":true},{"id":"g3-s22","groupId":"g3","name":"مايا وليد عبد الكريم ابو شاويش","uid":"22672069025","active":true},{"id":"g3-s23","groupId":"g3","name":"محمد احمد غازي ابوناموس","uid":"22672069052","active":true},{"id":"g3-s24","groupId":"g3","name":"محمد سمير موسى نصر","uid":"22672069141","active":true},{"id":"g3-s25","groupId":"g3","name":"مها احمد محمود ناصر","uid":"22672069145","active":true},{"id":"g3-s26","groupId":"g3","name":"ندى رشيد يوسف عرباس","uid":"22672069029","active":true},{"id":"g3-s27","groupId":"g3","name":"نور بدر ياقين نتشه","uid":"22672069149","active":true},{"id":"g3-s28","groupId":"g3","name":"هبه الله ماجد عبد الفتاح ابو الهيجاء","uid":"22672069056","active":true},{"id":"g3-s29","groupId":"g3","name":"وفاء حمدان محمود الصوفي","uid":"22672069153","active":true},{"id":"g3-s30","groupId":"g3","name":"مرح عمر … (اسم مضاف بخط اليد — أكمل الاسم)","uid":"","active":true,"review":true,"note":"مضاف بخط اليد في الكشف — راجع الاسم"},{"id":"g4-s01","groupId":"g4","name":"اسيل اشرف خالد حشيمه","uid":"","active":true},{"id":"g4-s02","groupId":"g4","name":"اسيل ايمن موسى الكسواني","uid":"","active":true},{"id":"g4-s03","groupId":"g4","name":"الاء جمال ابراهيم ابو خضره","uid":"","active":true},{"id":"g4-s04","groupId":"g4","name":"انوار محمد عزمي حمدان","uid":"","active":true},{"id":"g4-s05","groupId":"g4","name":"ايلا احمد فخري عياش","uid":"","active":false,"note":"مشطوب في الكشف الورقي"},{"id":"g4-s06","groupId":"g4","name":"ايه زياد محمود الشمله","uid":"","active":true},{"id":"g4-s07","groupId":"g4","name":"بيان محمد غازي صالح","uid":"","active":true},{"id":"g4-s08","groupId":"g4","name":"بيسان محمد نصر اللوزي","uid":"","active":true},{"id":"g4-s09","groupId":"g4","name":"جنان محمود خليل بظاظو","uid":"","active":true},{"id":"g4-s10","groupId":"g4","name":"حنان حسن احمد احمد","uid":"","active":true},{"id":"g4-s11","groupId":"g4","name":"حنين سمير سعيد رمانه","uid":"","active":true},{"id":"g4-s12","groupId":"g4","name":"راما ماهر اسماعيل السلامين","uid":"","active":true},{"id":"g4-s13","groupId":"g4","name":"ربا مهند عدنان ابو عامر","uid":"","active":true},{"id":"g4-s14","groupId":"g4","name":"رسل فراس احمد علي","uid":"","active":true},{"id":"g4-s15","groupId":"g4","name":"ريم محمد علي ابو سيف","uid":"","active":true},{"id":"g4-s16","groupId":"g4","name":"زينب عبد الله احمد ابو زعنونه","uid":"","active":true},{"id":"g4-s17","groupId":"g4","name":"سديل فارس فؤاد عوده","uid":"","active":true},{"id":"g4-s18","groupId":"g4","name":"سلسبيل علي شحده ابو تيم","uid":"","active":false,"note":"مشطوب في الكشف الورقي"},{"id":"g4-s19","groupId":"g4","name":"سميره محمود خليل بظاظو","uid":"","active":true},{"id":"g4-s20","groupId":"g4","name":"شهد ايهم محمد يانس","uid":"","active":true},{"id":"g4-s21","groupId":"g4","name":"صبا علي عبد الله القيسي","uid":"","active":true},{"id":"g4-s22","groupId":"g4","name":"عبد الله محمد عبدالله مرعب","uid":"","active":false,"note":"مشطوب في الكشف الورقي"},{"id":"g4-s23","groupId":"g4","name":"عدنان وليد عدنان السبع","uid":"","active":true},{"id":"g4-s24","groupId":"g4","name":"غيث اسامه حاتم شاهين","uid":"","active":true},{"id":"g4-s25","groupId":"g4","name":"لجين رائد ابراهيم الجرجاوي","uid":"","active":true},{"id":"g4-s26","groupId":"g4","name":"لين درويش محمد ابو معمر","uid":"","active":true},{"id":"g4-s27","groupId":"g4","name":"مريم رياض عبد الله البداوده","uid":"","active":true},{"id":"g4-s28","groupId":"g4","name":"معتز فضل عبدالله مصطفى","uid":"","active":true},{"id":"g4-s29","groupId":"g4","name":"ملك مراد عوض مصري","uid":"","active":true},{"id":"g4-s30","groupId":"g4","name":"نفين سامي ابراهيم ابو لبده","uid":"","active":true},{"id":"g4-s31","groupId":"g4","name":"نور مجدي محمد القليط","uid":"","active":true},{"id":"g4-s32","groupId":"g4","name":"هبه ياسر محمد الرجوب","uid":"","active":true},{"id":"g4-s33","groupId":"g4","name":"هديل عايد مرزق ابو صعيليك","uid":"","active":false,"note":"مشطوب في الكشف الورقي"},{"id":"g4-s34","groupId":"g4","name":"وعد وائل سلامه التغلبي","uid":"","active":false,"note":"مشطوب في الكشف الورقي"},{"id":"g4-s35","groupId":"g4","name":"ياره حسام محمد ابو عصر","uid":"","active":true},{"id":"g4-s36","groupId":"g4","name":"ياسمين عمر غازي بكر","uid":"","active":true},{"id":"g4-s37","groupId":"g4","name":"يزيد رمضان هاشم ابو حنفيه","uid":"","active":false,"note":"مشطوب في الكشف الورقي"},{"id":"g5-s01","groupId":"g5","name":"احمد ماهر يوسف زهران","uid":"22672041002","active":true},{"id":"g5-s02","groupId":"g5","name":"اسماء اسحق ابراهيم ابو عزام","uid":"22672041102","active":true},{"id":"g5-s03","groupId":"g5","name":"الاء خالد سليمان فريج","uid":"22672041004","active":true},{"id":"g5-s04","groupId":"g5","name":"انس محمد عايش موسى","uid":"22672041104","active":true},{"id":"g5-s05","groupId":"g5","name":"اوس عبد السلام محمد ابو هنطش","uid":"22672041106","active":true},{"id":"g5-s06","groupId":"g5","name":"ايهم خالد موسى الهنداوي","uid":"22672041006","active":true},{"id":"g5-s07","groupId":"g5","name":"بشرى ناصر الدين محمود حمدان","uid":"22672041108","active":true},{"id":"g5-s08","groupId":"g5","name":"تالا سامر احمد سعد","uid":"22672041110","active":true},{"id":"g5-s09","groupId":"g5","name":"حلا صبحي جبر أبو زر","uid":"22672041008","active":true},{"id":"g5-s10","groupId":"g5","name":"ديما علاء جمعه دغش","uid":"22672041010","active":true},{"id":"g5-s11","groupId":"g5","name":"رزان صبحي اسماعيل مشرف","uid":"22672041112","active":true},{"id":"g5-s12","groupId":"g5","name":"رند ناصر داود داود","uid":"22672041012","active":true},{"id":"g5-s13","groupId":"g5","name":"رهف ياسر تيسير قدوم","uid":"22672041114","active":true},{"id":"g5-s14","groupId":"g5","name":"ريف محمد عطوه ابو شاويش","uid":"22672041014","active":true},{"id":"g5-s15","groupId":"g5","name":"زينب مؤمن عبد السميع الحوراني","uid":"22672041016","active":true},{"id":"g5-s16","groupId":"g5","name":"سبيل فرحان ضيف الله ابو اصعيليك","uid":"22672041116","active":true},{"id":"g5-s17","groupId":"g5","name":"سديل مهند عبد الرزاق الزيتي","uid":"22672041118","active":true},{"id":"g5-s18","groupId":"g5","name":"سيف الدين محمد عبدالكريم عبود","uid":"22672041120","active":true},{"id":"g5-s19","groupId":"g5","name":"شروق محمود عبد الحليم البابا","uid":"22672041018","active":true},{"id":"g5-s20","groupId":"g5","name":"شهد هاشم علي العجارمة","uid":"22672041122","active":true},{"id":"g5-s21","groupId":"g5","name":"عباده صبري سعيد الخطيب","uid":"22672041020","active":true},{"id":"g5-s22","groupId":"g5","name":"عبد الكريم محمد يعقوب السلايمه","uid":"22672041124","active":true},{"id":"g5-s23","groupId":"g5","name":"فاطمه الزهراء محمد عبد الجبار ابراهيم","uid":"22672041126","active":true},{"id":"g5-s24","groupId":"g5","name":"فيصل مجدي عبد الله شباب","uid":"22672041128","active":true},{"id":"g5-s25","groupId":"g5","name":"لينا صلاح الدين عبدالكريم اصلان","uid":"22672041022","active":true},{"id":"g5-s26","groupId":"g5","name":"محمد امجد عطية طرخان","uid":"22672041130","active":true},{"id":"g5-s27","groupId":"g5","name":"محمد يوسف احمد ابو محسن","uid":"22672041024","active":true},{"id":"g5-s28","groupId":"g5","name":"مريم احمد خليل معروف","uid":"22672041026","active":true},{"id":"g5-s29","groupId":"g5","name":"ندى محمد ابراهيم موسى","uid":"22672041132","active":true},{"id":"g5-s30","groupId":"g5","name":"نور بلال محمود فاضل","uid":"22672041134","active":true},{"id":"g5-s31","groupId":"g5","name":"وعد غالب عمر برغل","uid":"22672041136","active":true},{"id":"g5-s32","groupId":"g5","name":"يارا محمد صلاح العتيبي","uid":"22672041028","active":true}];
@@ -441,8 +448,8 @@ let ws=weekStart(new Date());
 function slotStatus(date,slot){
   const s=db.sessions[sid(date,slot.id)];if(!s||s.deleted)return null;
   const list=rosterOf(slot.cls);
-  let a=0,l=0,u=0;list.forEach(st=>{const m=s.marks[st.id];if(m==='A')a++;else if(m==='L')l++;else if(!m)u++});
-  return{a,l,u,total:list.length};
+  let a=0,l=0,u=0,k=0;list.forEach(st=>{const m=s.marks[st.id];if(m==='A')a++;else if(m==='L')l++;else if(m==='S')k++;else if(!m)u++});
+  return{a,l,u,k,total:list.length};
 }
 function renderGrid(){
   const today=iso(new Date());const now=new Date();const mins=now.getHours()*60+now.getMinutes();
@@ -462,7 +469,7 @@ function renderGrid(){
       else{
         const c=K[slot.cls];const st=slotStatus(date,slot);
         let stHtml='';
-        if(st){stHtml=st.u?`<span class="st part">ناقص ${st.u} · غ ${st.a}</span>`:`<span class="st done">✓ غ ${st.a}${st.l?` · ت ${st.l}`:''}</span>`}
+        if(st){stHtml=st.u?`<span class="st part">ناقص ${st.u} · غ ${st.a}</span>`:`<span class="st done">✓ غ ${st.a}${st.k?` · مر ${st.k}`:''}${st.l?` · ت ${st.l}`:''}</span>`}
         const isNow=isToday&&mins>=PMIN[p.n-1][0]-10&&mins<PMIN[p.n-1][1];
         h+=`<td class="c-${slot.cls}"><button class="slot${isNow?' now':''}" data-slot="${slot.id}" data-date="${date}">
           <span class="c">${esc(c.course)}</span><span class="g">${esc(gShort(c.group))}</span>
@@ -511,7 +518,7 @@ function renderRoster(){
     const m=marks[st.id]||'';
     return `<div class="stu${m?' s-'+m:''}" data-st="${st.id}"><span class="n">${i+1}</span>
       <div class="nm"><b>${esc(st.name)}</b>${st.uid?`<small>${esc(st.uid)}</small>`:''}${st.review?'<span class="warnb"> ⚠ راجع الاسم</span>':''}<span class="limw">${limBadge(sl.cls,am[st.id]||0)}</span></div>
-      <div class="seg"><button class="sp${m==='P'?' on':''}" data-v="P">حاضر</button><button class="sa${m==='A'?' on':''}" data-v="A">غائب</button><button class="sl${m==='L'?' on':''}" data-v="L">متأخر</button></div></div>`}).join('');
+      <div class="seg"><button class="sp${m==='P'?' on':''}" data-v="P">حاضر</button><button class="sa${m==='A'?' on':''}" data-v="A">غائب</button><button class="ss${m==='S'?' on':''}" data-v="S">مرضي</button><button class="sl${m==='L'?' on':''}" data-v="L">متأخر</button></div></div>`}).join('');
   $('rList').querySelectorAll('.stu').forEach(row=>row.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>mark(row.dataset.st,b.dataset.v,row)));
   $('rNote').value=s?.note||'';
   updateCounts();
@@ -537,8 +544,8 @@ function mark(stId,v,row){
 }
 function updateCounts(){
   const list=rosterOf(S[cur.slotId].cls);const s=getSession(false);const mk=s?s.marks:{};
-  let n={P:0,A:0,L:0,U:0};list.forEach(st=>n[mk[st.id]||'U']++);
-  $('rCounts').innerHTML=`<div class="k-p"><b>${n.P}</b>حاضر</div><div class="k-a"><b>${n.A}</b>غائب</div><div class="k-l"><b>${n.L}</b>متأخر</div><div class="k-u"><b>${n.U}</b>لم يُحدَّد</div>`;
+  let n={P:0,A:0,S:0,L:0,U:0};list.forEach(st=>n[mk[st.id]||'U']++);
+  $('rCounts').innerHTML=`<div class="k-p"><b>${n.P}</b>حاضر</div><div class="k-a"><b>${n.A}</b>غائب</div><div class="k-s"><b>${n.S}</b>مرضي</div><div class="k-l"><b>${n.L}</b>متأخر</div><div class="k-u"><b>${n.U}</b>لم يُحدَّد</div>`;
 }
 $('rAllP').onclick=()=>{
   const s=getSession(true);const list=rosterOf(S[cur.slotId].cls);
@@ -569,11 +576,11 @@ function repSessions(cls){
 function computeRep(cls){
   const ss=repSessions(cls);const studs=studentsOf(K[cls].group);
   const rows=studs.map(st=>{
-    let P=0,A=0,L=0,U=0;ss.forEach(s=>{const m=s.marks[st.id];if(m==='P')P++;else if(m==='A')A++;else if(m==='L')L++;else U++});
+    let P=0,A=0,L=0,U=0,K=0;ss.forEach(s=>{const m=s.marks[st.id];if(m==='P')P++;else if(m==='A')A++;else if(m==='L')L++;else if(m==='S')K++;else U++});
     const rec=P+A+L;const pct=ss.length?A/ss.length*100:0;
     const lvl=limLevel(cls,A);
-    return{st,P,A,L,U,pct,lvl};
-  }).filter(r=>(r.st.active!==false&&inClass(r.st,cls))||r.P+r.A+r.L>0);
+    return{st,P,A,L,U,K,pct,lvl};
+  }).filter(r=>(r.st.active!==false&&inClass(r.st,cls))||r.P+r.A+r.L+r.K>0);
   return{ss,rows};
 }
 const fmtPct=x=>(Math.round(x*10)/10).toString();
@@ -585,13 +592,13 @@ function renderReport(){
   const head=`<h2 style="margin:0 0 4px;color:var(--navy)">${esc(clsLabel(cls))}</h2><p class="muted">عدد الحصص المسجّلة: <b>${ss.length}</b> — الإنذار عند <b>${lim.warn}</b> غيابات والحرمان عند <b>${lim.ban}</b>${$('repFrom').value||$('repTo').value?` — الفترة ${esc($('repFrom').value||'…')} إلى ${esc($('repTo').value||'…')}`:''}</p>`;
   if(!rows.length){$('repOut').innerHTML=head+'<p class="muted">لا يوجد طلاب لهذه الشعبة بعد.</p>';return}
   if($('repMode').value==='sum'){
-    $('repOut').innerHTML=head+`<div class="tbl"><table class="rep"><thead><tr><th>#</th><th>اسم الطالب</th><th>الرقم الجامعي</th><th>حضور</th><th>غياب</th><th>تأخير</th><th>لم يُسجَّل</th><th>نسبة الغياب</th><th>الحالة</th></tr></thead><tbody>${
-      rows.map((r,i)=>`<tr class="${r.lvl}"><td class="num">${i+1}</td><td>${esc(r.st.name)}${r.st.active===false?' <small class="muted">(غير فعّال)</small>':''}</td><td>${esc(r.st.uid||'')}</td><td class="num">${r.P}</td><td class="num">${r.A}</td><td class="num">${r.L}</td><td class="num">${r.U}</td><td class="num">${fmtPct(r.pct)}٪</td><td>${r.lvl?`<span class="tag ${r.lvl}">${lvlName[r.lvl]}</span>`:'<span class="tag ok">منتظم</span>'}</td></tr>`).join('')
+    $('repOut').innerHTML=head+`<div class="tbl"><table class="rep"><thead><tr><th>#</th><th>اسم الطالب</th><th>الرقم الجامعي</th><th>حضور</th><th>غياب</th><th>مرضي</th><th>تأخير</th><th>لم يُسجَّل</th><th>نسبة الغياب</th><th>الحالة</th></tr></thead><tbody>${
+      rows.map((r,i)=>`<tr class="${r.lvl}"><td class="num">${i+1}</td><td>${esc(r.st.name)}${r.st.active===false?' <small class="muted">(غير فعّال)</small>':''}</td><td>${esc(r.st.uid||'')}</td><td class="num">${r.P}</td><td class="num">${r.A}</td><td class="num">${r.K}</td><td class="num">${r.L}</td><td class="num">${r.U}</td><td class="num">${fmtPct(r.pct)}٪</td><td>${r.lvl?`<span class="tag ${r.lvl}">${lvlName[r.lvl]}</span>`:'<span class="tag ok">منتظم</span>'}</td></tr>`).join('')
     }</tbody></table></div>`;
   }else{
     $('repOut').innerHTML=head+`<div class="tbl"><table class="rep mx"><thead><tr><th>اسم الطالب</th>${ss.map(s=>`<th>${dm(parseIso(s.date))}<small>${PERIODS[s.period-1].name}</small></th>`).join('')}<th>غياب</th></tr></thead><tbody>${
-      rows.map(r=>`<tr><td>${esc(r.st.name)}</td>${ss.map(s=>{const m=s.marks[r.st.id]||'';return`<td class="m ${m}">${m?ST[m][0]:'·'}</td>`}).join('')}<td class="num"><b>${r.A}</b></td></tr>`).join('')
-    }</tbody></table></div><p class="muted">ح = حاضر، غ = غائب، م = متأخر، · = لم يُسجَّل</p>`;
+      rows.map(r=>`<tr><td>${esc(r.st.name)}</td>${ss.map(s=>{const m=s.marks[r.st.id]||'';return`<td class="m ${m}">${m?(STL[m]||m):'·'}</td>`}).join('')}<td class="num"><b>${r.A}</b></td></tr>`).join('')
+    }</tbody></table></div><p class="muted">ح = حاضر، غ = غائب، مر = مرضي، ت = متأخر، · = لم يُسجَّل</p>`;
   }
 }
 ['repClass','repFrom','repTo','repMode'].forEach(id=>$(id).onchange=renderReport);
@@ -607,8 +614,8 @@ function repCsvLines(cls,withHeader){
     L.push(['المادة والشعبة','اسم الطالب','الرقم الجامعي',...ss.map(s=>`${s.date} ${PERIODS[s.period-1].name}`),'مجموع الغياب'].map(csvq).join(','));
     rows.forEach(r=>L.push([clsLabel(cls),r.st.name,r.st.uid||'',...ss.map(s=>ST[s.marks[r.st.id]]||''),r.A].map(csvq).join(',')));
   }else{
-    if(withHeader)L.push(['المادة والشعبة','اسم الطالب','الرقم الجامعي','عدد الحصص المسجلة','حضور','غياب','تأخير','لم يسجل','نسبة الغياب %','الحالة','حد الإنذار','حد الحرمان'].map(csvq).join(','));
-    const lm=limOf(cls);rows.forEach(r=>L.push([clsLabel(cls),r.st.name,r.st.uid||'',ss.length,r.P,r.A,r.L,r.U,fmtPct(r.pct),lvlName[r.lvl],lm.warn,lm.ban].map(csvq).join(',')));
+    if(withHeader)L.push(['المادة والشعبة','اسم الطالب','الرقم الجامعي','عدد الحصص المسجلة','حضور','غياب','مرضي','تأخير','لم يسجل','نسبة الغياب %','الحالة','حد الإنذار','حد الحرمان'].map(csvq).join(','));
+    const lm=limOf(cls);rows.forEach(r=>L.push([clsLabel(cls),r.st.name,r.st.uid||'',ss.length,r.P,r.A,r.K,r.L,r.U,fmtPct(r.pct),lvlName[r.lvl],lm.warn,lm.ban].map(csvq).join(',')));
   }
   return L;
 }
