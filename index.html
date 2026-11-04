@@ -147,7 +147,40 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:16px}
   .srow{grid-template-columns:30px 1fr auto}
   .srow .uid{display:none}
 }
+#letters{display:none}
+body.preview-letters>*:not(#letters){display:none!important}
+body.preview-letters{background:#6b7682}
+body.preview-letters #letters{display:block;overflow:auto;padding:0 0 30px}
+.lbar{position:sticky;top:0;z-index:5;display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;background:var(--navy);color:#fff}
+.lbar button{min-width:120px}.lbar button.primary{background:#fff;color:var(--navy)}.lbar button:not(.primary){background:transparent;color:#fff;border:1px solid #ffffff80}
+body.preview-letters .letter{margin:16px auto;box-shadow:0 4px 18px #0005}
+@media print{.lbar{display:none!important}body.preview-letters .letter{margin:0 auto;box-shadow:none}}
+.letter{width:190mm;margin:0 auto;padding:6mm 5mm;font-family:"Times New Roman","Traditional Arabic","Simplified Arabic",serif;color:#000;font-size:14.5pt;line-height:1.65;background:#fff;page-break-after:always;break-after:page;position:relative}
+.letter:last-child{page-break-after:auto;break-after:auto}
+.letter .lh{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:10px;font-weight:700}
+.letter .lh .r{text-align:right;border-bottom:1.5px solid #000;padding-bottom:4px}
+.letter .lh .l{text-align:left;border-bottom:1.5px solid #000;padding-bottom:4px}
+.letter .lh .c{text-align:center;font-size:11pt;font-weight:700;line-height:1.2}
+.letter .fld{margin-top:7mm;display:flex;gap:8px;align-items:baseline}
+.letter .fld+.fld{margin-top:4mm}
+.letter .fld b{white-space:nowrap}
+.letter .fld span{flex:0 1 95mm;border-bottom:1px solid #000;padding:0 6px;min-height:1.6em}
+.letter .subj{text-align:center;margin:8mm 0 5mm;font-weight:700;text-decoration:underline;text-underline-offset:6px}
+.letter table{width:100%;border-collapse:collapse;margin:5mm 0 7mm;font-size:14pt}
+.letter th,.letter td{border:1.2px solid #000;padding:4px 8px;text-align:center;height:9.5mm}
+.letter th{background:#9a9a9a;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.letter .tch{margin-top:7mm;display:flex;gap:8px;align-items:baseline;font-weight:700}
+.letter .tch span{flex:0 1 80mm;border-bottom:1px solid #000;padding:0 6px;font-weight:400}
+.letter .head{margin-top:8mm;margin-inline-start:auto;width:70mm;text-align:center;font-weight:700}
+.letter .head .sig{height:14mm}
+.letter .note{margin-top:8mm;font-size:13pt;text-align:center}
+.letter .cc{margin-top:6mm;border-top:1.5px solid #000;padding-top:4mm;font-size:13pt}
+.letter .dt{position:absolute;top:24mm;left:6mm;font-size:12pt}
 @media print{
+  body.print-letters>*:not(#letters){display:none!important}
+  body.print-letters #letters{display:block!important}
+  body.print-letters{background:#fff}
+  @page{size:A4;margin:10mm}
   header.top,.noprint,nav{display:none!important}
   body{background:#fff}
   main{padding:0}
@@ -244,6 +277,11 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:16px}
         <button class="ghost" id="repPrint">طباعة / PDF</button>
       </div>
     </div>
+    <div class="card" id="warnCard">
+      <div class="rhead"><div><h2 style="margin:0 0 4px;color:var(--navy)">الإنذارات المستحقة</h2><p class="muted" style="margin:0">كل طالب وصل حد الإنذار أو الحرمان في أي مادة. اختر نوع الإنذار واضغط «طباعة»، فيُعبّأ النموذج تلقائيًا.</p></div>
+      <button class="primary noprint" id="warnAll">طباعة كل الإنذارات</button></div>
+      <div id="warnList" style="margin-top:10px"></div>
+    </div>
     <div class="card" id="repOut"></div>
   </section>
 
@@ -321,6 +359,7 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:16px}
 </main>
 <footer>يعمل دون إنترنت — البيانات محفوظة على الجهاز، وتُرسل إلى Google Sheets الخاص بك فقط عند تفعيل المزامنة</footer>
 <div class="toast" id="toast"></div>
+<div id="letters" aria-hidden="true"></div>
 
 <script>
 'use strict';
@@ -334,11 +373,12 @@ const PERIODS=[
 // بداية ونهاية كل حصة بالدقائق (لتمييز المحاضرة الحالية)
 const PMIN=[[510,560],[560,610],[610,660],[660,710],[730,780],[780,830],[830,880],[880,920]];
 const GROUPS=[
-  {id:'g1',name:'محاسبة ثانية تنافس'},
-  {id:'g2',name:'إدارة أعمال ثانية — شعبة ب',short:'أعمال 2 ش ب'},
-  {id:'g3',name:'إدارة أعمال أولى — شعبة 1',short:'أعمال 1 ش 1'},
-  {id:'g4',name:'محاسبة ثانية موازي'},
-  {id:'g5',name:'محاسبة أولى تنافس',short:'محاسبة 1 تنافس'}];
+  {id:'g1',name:'محاسبة ثانية تنافس',spec:'المحاسبة التطبيقية'},
+  {id:'g2',name:'إدارة أعمال ثانية — شعبة ب',short:'أعمال 2 ش ب',spec:'إدارة الأعمال'},
+  {id:'g3',name:'إدارة أعمال أولى — شعبة 1',short:'أعمال 1 ش 1',spec:'إدارة الأعمال'},
+  {id:'g4',name:'محاسبة ثانية موازي',spec:'المحاسبة التطبيقية'},
+  {id:'g5',name:'محاسبة أولى تنافس',short:'محاسبة 1 تنافس',spec:'المحاسبة التطبيقية'}];
+const TEACHER='يوسف عليان',HEAD_NAME='سلوى العزة',HEAD_TITLE='رئيس القسم التجاري';
 const CLASSES=[
   {id:'k1',course:'محاسبة ضرائب',group:'g1'},
   {id:'k2',course:'محاسبة تطبيقية',group:'g2'},
@@ -380,6 +420,7 @@ db.settings=Object.assign({warn:10,ban:15},db.settings||{});
 db.sync=Object.assign({url:'',secret:'',rev:0,pushedAt:null,lastOk:null,lastErr:''},db.sync||{});
 db.assessments=db.assessments||{};
 db.limits=db.limits||{id:'cfg-limits',kind:'cfg',values:{},updatedAt:''};
+db.warnLog=db.warnLog||{id:'cfg-warnlog',kind:'cfg',values:{},updatedAt:''};
 // مواءمة رقم المحاضرة في السجلات القديمة مع الجدول الحالي (مثل نقل محاضرات الثلاثاء) دون حذف أي تسجيل
 function alignSession(x,bump){const sl=S[x.slotId];if(sl&&x.period!==sl.period){x.period=sl.period;if(bump)x.updatedAt=new Date().toISOString();return true}return false}
 (function(){let n=0;Object.values(db.sessions).forEach(x=>{if(alignSession(x,true))n++});if(n){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}}})();
@@ -388,6 +429,7 @@ function absorbRecord(r){
   if(!r||!r.kind)return false;
   if(r.kind==='assess'){const ex=db.assessments[r.id];if(!ex||(r.updatedAt||'')>(ex.updatedAt||'')){db.assessments[r.id]=r;return 'new'}return true}
   if(r.kind==='cfg'&&r.id==='cfg-limits'){if((r.updatedAt||'')>(db.limits.updatedAt||'')){db.limits=r;return 'new'}return true}
+  if(r.kind==='cfg'&&r.id==='cfg-warnlog'){if((r.updatedAt||'')>((db.warnLog||{}).updatedAt||'')){db.warnLog=r;return 'new'}return true}
   return true;
 }
 if(db.students.some(x=>x.kind)){db.students=db.students.filter(x=>!absorbRecord(x));try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}}
@@ -585,7 +627,53 @@ function computeRep(cls){
 }
 const fmtPct=x=>(Math.round(x*10)/10).toString();
 const lvlName={b:'حرمان',w:'إنذار','':'—'};
+/* ================= الإنذارات ================= */
+const SUBJECTS=['إنذار أول','إنذار ثانٍ','إنذار نهائي'];
+function dueWarnings(){
+  const by={};
+  CLASSES.forEach(c=>{const am=absMap(c.id);const l=limOf(c.id);
+    rosterOf(c.id).forEach(st=>{const n=am[st.id]||0;if(n>=l.warn){(by[st.id]=by[st.id]||{st,rows:[],lvl:'w'}).rows.push({cls:c.id,n,lvl:n>=l.ban?'b':'w'});if(n>=l.ban)by[st.id].lvl='b'}})});
+  return Object.values(by).sort((a,b)=>(a.lvl===b.lvl?0:a.lvl==='b'?-1:1)||a.st.name.localeCompare(b.st.name,'ar'));
+}
+const wKey=(stId,subj)=>stId+'|'+subj;
+function defaultSubject(w){if(w.lvl==='b')return 'إنذار نهائي';const done=SUBJECTS.filter(sb=>db.warnLog.values[wKey(w.st.id,sb)]);return done.includes('إنذار أول')?(done.includes('إنذار ثانٍ')?'إنذار نهائي':'إنذار ثانٍ'):'إنذار أول'}
+function renderWarnings(){
+  const list=dueWarnings();const el=$('warnList');$('warnAll').disabled=!list.length;
+  if(!list.length){el.innerHTML='<p class="muted">لا يوجد طالب وصل حد الإنذار حتى الآن.</p>';return}
+  el.innerHTML=`<div class="tbl"><table class="rep"><thead><tr><th>اسم الطالب</th><th>الشعبة</th><th>المواد (عدد الغيابات)</th><th>الحالة</th><th class="noprint">نوع الإنذار</th><th class="noprint"></th></tr></thead><tbody>${list.map(w=>{const sub=defaultSubject(w);const issued=SUBJECTS.filter(sb=>db.warnLog.values[wKey(w.st.id,sb)]).map(sb=>`${sb} (${dm(parseIso(db.warnLog.values[wKey(w.st.id,sb)]))})`).join('، ');
+    return `<tr class="${w.lvl}" data-st="${w.st.id}"><td>${esc(w.st.name)}${issued?`<br><small class="muted">صدر: ${esc(issued)}</small>`:''}</td><td>${esc(G[w.st.groupId].short||G[w.st.groupId].name)}</td><td>${w.rows.map(r=>`${esc(K[r.cls].course)} (${r.n})`).join('<br>')}</td><td><span class="tag ${w.lvl}">${w.lvl==='b'?'حرمان':'إنذار'}</span></td><td class="noprint"><select class="wsub" style="min-width:130px">${SUBJECTS.map(sb=>`<option${sb===sub?' selected':''}>${sb}</option>`).join('')}</select></td><td class="noprint"><button class="primary wprint">🖨 طباعة</button></td></tr>`}).join('')}</tbody></table></div>`;
+  el.querySelectorAll('tr[data-st]').forEach(tr=>tr.querySelector('.wprint').onclick=()=>{const w=list.find(x=>x.st.id===tr.dataset.st);printLetters([{w,subj:tr.querySelector('.wsub').value}])});
+}
+function letterHtml(w,subj){
+  const st=w.st,g=G[st.groupId];const rows=w.rows.slice(0,Math.max(3,w.rows.length));while(rows.length<3)rows.push(null);
+  return `<div class="letter">
+  <div class="lh"><div class="r">كلية تدريب عمان</div><div class="c">الأونروا<br>UNRWA</div><div class="l">قسم الأعمال الإدارية والمالية</div></div>
+  <div class="dt">التاريخ: ${dmy(new Date())}</div>
+  <div class="fld"><b>الطالب/ الطالبة :</b><span>${esc(st.name)}</span></div>
+  <div class="fld"><b>التخصص :</b><span>${esc(g.spec||'')}${st.uid?` — الرقم: ${esc(st.uid)}`:''}</span></div>
+  <div class="subj">الموضوع : ${esc(subj)}</div>
+  <div>بعد الاطلاع على سجلات الحضور والغياب تبيّن أنك قد غيّبت نفسك عن حضور المواد الدراسيّة التالية:</div>
+  <table><thead><tr><th style="width:18%">الرقم</th><th>اسم المادة الدراسيّة</th><th style="width:28%">عدد مرات الغياب</th></tr></thead><tbody>${rows.map((r,i)=>r?`<tr><td>${i+1}</td><td>${esc(K[r.cls].course)}</td><td>${r.n}</td></tr>`:'<tr><td></td><td></td><td></td></tr>').join('')}</tbody></table>
+  <div>وبناءً عليه، فقد تقرر توجيه هذا الإنذار إليك، لحثك على الالتزام بتعليمات الحضور والغياب، علماً بأن تكرار غيابك مستقبلاً سيؤدي إلى حرمانك من الجلوس للامتحان النهائي للمادة الدراسيّة.</div>
+  <div class="tch">اسم مدرس المادة وتوقيعه :<span>${esc(TEACHER)}</span></div>
+  <div class="head"><div>${esc(HEAD_NAME)}</div><div>${esc(HEAD_TITLE)}</div><div class="sig"></div></div>
+  <div class="note">يرجى تسليم الطالب النسخة الأصلية من الإنذار وتوقيعه على صورة من الإنذار وتسليمي الصورة.</div>
+  <div class="cc">نسخة: ملف الطالب</div>
+</div>`;
+}
+function printLetters(items){
+  if(!items.length)return;
+  $('letters').innerHTML=`<div class="lbar noprint"><b>${items.length>1?`${items.length} إنذارات جاهزة للطباعة`:'معاينة الإنذار'}</b><button class="primary" id="lPrint">🖨 طباعة</button><button id="lBack">→ رجوع</button></div>`+items.map(x=>letterHtml(x.w,x.subj)).join('');
+  document.body.classList.add('print-letters','preview-letters');window.scrollTo(0,0);
+  $('lBack').onclick=()=>{document.body.classList.remove('print-letters','preview-letters');$('letters').innerHTML='';renderWarnings();$('warnCard').scrollIntoView({block:'start'})};
+  $('lPrint').onclick=()=>{
+    const today=iso(new Date());items.forEach(x=>{db.warnLog.values[wKey(x.w.st.id,x.subj)]=today});db.warnLog.updatedAt=new Date().toISOString();persist();
+    window.print();
+  };
+}
+$('warnAll').onclick=()=>{const list=dueWarnings();const subs={};$('warnList').querySelectorAll('tr[data-st]').forEach(tr=>subs[tr.dataset.st]=tr.querySelector('.wsub').value);printLetters(list.map(w=>({w,subj:subs[w.st.id]||defaultSubject(w)})))};
 function renderReport(){
+  renderWarnings();
   fillRepClass();
   const cls=$('repClass').value;const lim=limOf(cls);
   $('setWarn').value=lim.warn;$('setBan').value=lim.ban;const{ss,rows}=computeRep(cls);
@@ -771,6 +859,7 @@ $('fileIn').onchange=async e=>{
   });
   let addG=0;Object.values(d.assessments||{}).forEach(a=>{if(absorbRecord(a)==='new')addG++});
   if(d.limits)absorbRecord(d.limits);
+  if(d.warnLog)absorbRecord(d.warnLog);
   db.students=db.students.filter(x=>!absorbRecord(x));
   if(d.settings&&d.kind==='backup'&&!Object.keys(db.sessions).length)db.settings=Object.assign(db.settings,d.settings);
   Object.values(db.sessions).forEach(x=>alignSession(x,false));
@@ -795,7 +884,7 @@ let syncBusy=false,syncAgain=false,syncTimer=null;
 function syncReady(){return !!(syncUrl()&&db.sync.secret)}
 function pendingCount(){
   const t=db.sync.pushedAt||'';
-  return Object.values(db.sessions).filter(s=>(s.updatedAt||'')>t).length+db.students.filter(s=>s.updatedAt&&s.updatedAt>t).length+Object.values(db.assessments).filter(a=>(a.updatedAt||'')>t).length+((db.limits.updatedAt||'')>t?1:0);
+  return Object.values(db.sessions).filter(s=>(s.updatedAt||'')>t).length+db.students.filter(s=>s.updatedAt&&s.updatedAt>t).length+Object.values(db.assessments).filter(a=>(a.updatedAt||'')>t).length+((db.limits.updatedAt||'')>t?1:0)+((db.warnLog.updatedAt||'')>t?1:0);
 }
 function scheduleSync(){
   if(!syncReady())return;
@@ -821,7 +910,7 @@ async function doSync(manual){
   const start=new Date().toISOString();const first=!db.sync.pushedAt;const t=db.sync.pushedAt||'';
   const payload={secret:db.sync.secret,since:db.sync.rev||0,
     sessions:Object.values(db.sessions).filter(s=>(s.updatedAt||'')>t),
-    students:db.students.filter(s=>first||(s.updatedAt&&s.updatedAt>t)).concat(Object.values(db.assessments).filter(a=>(a.updatedAt||'')>t),db.limits.updatedAt&&db.limits.updatedAt>t?[db.limits]:[]),
+    students:db.students.filter(s=>first||(s.updatedAt&&s.updatedAt>t)).concat(Object.values(db.assessments).filter(a=>(a.updatedAt||'')>t),db.limits.updatedAt&&db.limits.updatedAt>t?[db.limits]:[],db.warnLog.updatedAt&&db.warnLog.updatedAt>t?[db.warnLog]:[]),
     meta:{classes:Object.fromEntries(CLASSES.map(c=>[c.id,clsLabel(c.id)])),periods:PERIODS.map(p=>p.name),days:DAYS},
     rebuild:first};
   try{
