@@ -359,14 +359,18 @@ body.preview-letters .letter{margin:16px auto;box-shadow:0 4px 18px #0005}
       <p class="muted">الدمج لا يحذف شيئًا: يضيف الطلاب والمحاضرات الجديدة، وعند وجود المحاضرة نفسها على الجهازين يحتفظ بالتسجيل الأحدث.</p>
     </div>
     <div class="card">
-      <h3 style="margin-top:0">حماية البيانات</h3>
+      <h3 style="margin-top:0">إصدار البرنامج</h3>
+      <p>الإصدار الحالي على هذا الجهاز: <b id="verLbl"></b></p>
+      <p class="muted">إذا طلبت تعديلًا ولم يظهر، اضغط هذا الزر وأنت متصل بالإنترنت. بياناتك لا تتأثر.</p>
+      <button id="forceUpd">تحديث البرنامج الآن</button>
+      <h3>حماية البيانات</h3>
       <p class="muted" id="bkPersist"></p>
       <button class="ghost" id="bkWipe" style="color:var(--a)">مسح كل البيانات من هذا الجهاز</button>
     </div>
   </section>
   <input type="file" id="fileIn" accept=".json,application/json" class="hidden">
 </main>
-<footer>يعمل دون إنترنت — البيانات محفوظة على الجهاز، وتُرسل إلى Google Sheets الخاص بك فقط عند تفعيل المزامنة</footer>
+<footer><span id="verFoot"></span> — يعمل دون إنترنت — البيانات محفوظة على الجهاز، وتُرسل إلى Google Sheets الخاص بك فقط عند تفعيل المزامنة</footer>
 <div class="toast" id="toast"></div>
 <div id="letters" aria-hidden="true"></div>
 
@@ -857,7 +861,7 @@ async function saveFile(name,data,type){
 }
 function counts(){const ss=Object.values(db.sessions).filter(s=>!s.deleted);return{st:db.students.filter(s=>s.active!==false&&!s.kind).length,ss:ss.length,marks:ss.reduce((n,s)=>n+Object.keys(s.marks).length,0)}}
 function renderBackup(){
-  renderSyncCard();
+  renderSyncCard();$('verLbl').textContent=APP_VERSION;$('forceUpd').onclick=forceUpdate;
   const c=counts();
   $('bkStats').innerHTML=`على هذا الجهاز الآن: <b>${c.st}</b> طالبًا فعّالًا، <b>${c.ss}</b> حصة مسجّلة، <b>${c.marks}</b> علامة حضور.<br>آخر نسخة احتياطية: <b>${db.lastBackup?dmy(new Date(db.lastBackup))+' '+new Date(db.lastBackup).toLocaleTimeString('ar-JO',{hour:'2-digit',minute:'2-digit'}):'لم تُنزَّل أي نسخة بعد'}</b>`;
   let msg='التخزين: محلي داخل المتصفح.';
@@ -992,14 +996,29 @@ window.addEventListener('offline',renderSyncState);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&syncReady())doSync()});
 setInterval(()=>{if(syncReady()&&document.visibilityState==='visible')doSync()},120000);
 
+/* ================= إصدار البرنامج والتحديث اليدوي ================= */
+const APP_VERSION='15 — 4/11/2026';
+async function forceUpdate(){
+  toast('جارٍ تحديث البرنامج…');
+  try{const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.filter(r=>!r.scope.includes('/jcpa/')).map(r=>r.unregister()))}catch(e){}
+  try{const ks=await caches.keys();await Promise.all(ks.filter(k=>k.startsWith('hudoor-')).map(k=>caches.delete(k)))}catch(e){}
+  location.replace(location.pathname.replace(/index\.html$/,'')+'?v='+Date.now());
+}
+
 /* ================= بدء التشغيل ================= */
 bindImport();
+$('verFoot').textContent='الإصدار '+APP_VERSION;
 showTab('schedule');
 renderSyncState();
 if(syncReady())doSync();
 else if(syncUrl()&&!db.sync.secret){const el=document.createElement('div');$('backupBanner').after(el);el.id='syncBanner';el.className='banner info noprint';el.innerHTML='<span>☁ المزامنة بين الأجهزة جاهزة. أدخل الرمز السري مرة واحدة على هذا الجهاز لتفعيلها.</span><button class="primary" id="bnSync">تفعيل المزامنة</button>';$('bnSync').onclick=()=>{el.remove();showTab('backup')}}
 setInterval(()=>{if(curTab==='schedule')renderGrid()},60000);
-if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
+  const hadCtrl=!!navigator.serviceWorker.controller;let reloaded=false;
+  // عند وصول نسخة جديدة من البرنامج: أعد التحميل مرة واحدة تلقائيًا لتظهر فورًا
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(hadCtrl&&!reloaded){reloaded=true;const el=document.activeElement;if(el&&el.classList&&el.classList.contains('g'))flushGrade();location.reload()}});
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update().catch(()=>{});document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')r.update().catch(()=>{})})}).catch(()=>{});
+}
 </script>
 </body>
 </html>
