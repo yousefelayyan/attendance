@@ -1,5 +1,5 @@
 // يحفظ ملفات البرنامج على الجهاز ليعمل دون إنترنت بعد أول فتح
-const CACHE = 'hudoor-v17';
+const CACHE = 'hudoor-v18';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {
   // cache:'reload' يتجاوز النسخة المؤقتة في المتصفح ليأخذ أحدث ملفات منشورة
