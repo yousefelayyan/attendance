@@ -944,7 +944,7 @@ function readGradeFile(name,text){
   if(/^\s*[\[{]/.test(text)){
     const d=JSON.parse(text);const arr=Array.isArray(d)?d:(d.marks||d.rows||[]);
     if(!Array.isArray(d)){meta.cls=d.class||d.cls;meta.course=d.course;meta.section=d.section;meta.column=d.column||d.title;meta.max=toNum(d.max)}
-    list=arr.map(r=>({uid:digits(r.uid||r.id||r['الرقم الجامعي']||'').replace(/\D/g,''),name:String(r.name||r['اسم الطالب']||'').trim(),mark:toNum(r.mark??r.score??r['العلامة'])}));
+    list=arr.map(r=>({uid:digits(r.uid||r.id||r['الرقم الجامعي']||'').replace(/[^\d?؟]/g,'').replace(/؟/g,'?'),name:String(r.name||r['اسم الطالب']||'').trim(),mark:toNum(r.mark??r.score??r['العلامة'])}));
   }else{
     const rows=parseCsv(text);let h=rows[0]||[];
     // أسطر معلومات اختيارية في أول الملف: المادة/الشعبة/العمود/العلامة القصوى
@@ -953,19 +953,29 @@ function readGradeFile(name,text){
     let iu=h.findIndex(c=>/رقم|uid|id/i.test(c)),inm=h.findIndex(c=>/اسم|name/i.test(c)),im=h.findIndex(c=>/علام|درج|mark|score|grade|نتيج/i.test(c));
     let body=rows.slice(1);
     if(im<0){body=rows;const w=rows[0]?rows[0].length:0;iu=w>=3?0:-1;inm=w>=3?1:0;im=w-1}
-    list=body.map(r=>({uid:iu>=0?digits(r[iu]).replace(/\D/g,''):'',name:inm>=0?(r[inm]||''):'',mark:toNum(r[im])}));
+    list=body.map(r=>({uid:iu>=0?digits(r[iu]).replace(/[^\d?؟]/g,'').replace(/؟/g,'?'):'',name:inm>=0?(r[inm]||''):'',mark:toNum(r[im])}));
   }
   list=list.filter(r=>(r.uid||r.name)&&r.mark!==null);
   if(!meta.column)meta.column=name.replace(/\.[^.]+$/,'');
   return{meta,list};
 }
-function matchGrades(list,cls){
-  const pool=studentsOf(K[cls].group).filter(st=>inClass(st,cls));const used=new Set();
-  return list.map(r=>{
-    let st=r.uid&&pool.find(x=>digits(x.uid).replace(/\D/g,'')===r.uid);
+function matchGrades(list,cls,manual){
+  const pool=studentsOf(K[cls].group).filter(st=>inClass(st,cls));const used=new Set(Object.values(manual||{}));
+  return list.map((r,i)=>{
+    if(manual&&manual[i]){const st=db.students.find(x=>x.id===manual[i]);if(st)return{...r,st,approx:'اختيار يدوي'}}
+    const U=x=>digits(x.uid).replace(/\D/g,'');let approx='';
+    let st=r.uid&&!r.uid.includes('?')&&pool.find(x=>U(x)===r.uid);
     if(!st&&r.name)st=pool.find(x=>nrm(x.name)===nrm(r.name));
-    if(!st&&r.name){const t=nrm(r.name).split(' ');const c=pool.filter(x=>{const u=nrm(x.name).split(' ');return u[0]===t[0]&&u[u.length-1]===t[t.length-1]});if(c.length===1)st=c[0]}
-    if(st&&used.has(st.id))return{...r,st:null,dup:true};if(st)used.add(st.id);return{...r,st};
+    if(!st&&r.name){const t=nrm(r.name).split(' ');const c=pool.filter(x=>{const u=nrm(x.name).split(' ');return u[0]===t[0]&&u[u.length-1]===t[t.length-1]});if(c.length===1){st=c[0];approx='بالاسم تقريبًا'}}
+    // رقم مقروء من ورقة الطالب: نقبل خانة واحدة غير واضحة (؟) أو خاطئة، أو آخر 5 خانات — بشرط أن يكون طالبًا واحدًا فقط
+    if(!st&&r.uid&&r.uid.length>=4){
+      const diff=(a,b)=>{if(a.length!==b.length)return 9;let d=0;for(let i=0;i<a.length;i++)if(a[i]!=='?'&&a[i]!==b[i])d++;return d+[...a].filter(c=>c==='?').length*0};
+      let c=pool.filter(x=>U(x)&&diff(r.uid,U(x))===0&&r.uid.includes('?'));
+      if(c.length!==1)c=pool.filter(x=>U(x)&&diff(r.uid,U(x))===1);
+      if(c.length!==1&&r.uid.length>=5)c=pool.filter(x=>U(x).endsWith(r.uid.slice(-5).replace(/\?/g,''))&&!r.uid.slice(-5).includes('?'));
+      if(c.length===1){st=c[0];approx='الرقم مقروء تقريبًا'}
+    }
+    if(st&&used.has(st.id))return{...r,st:null,dup:true};if(st)used.add(st.id);return{...r,st,approx};
   });
 }
 function guessClass(list,meta){
@@ -986,7 +996,10 @@ $('grImpIn').onchange=async e=>{
 };
 function renderImport(){
   const el=$('grImp');if(!gImp){el.classList.add('hidden');return}
-  el.classList.remove('hidden');const{meta,list,cls}=gImp;const m=matchGrades(list,cls);const ok=m.filter(r=>r.st),bad=m.filter(r=>!r.st);
+  el.classList.remove('hidden');const{meta,list,cls}=gImp;gImp.manual=gImp.manual||{};const m=matchGrades(list,cls,gImp.manual);
+  const usedIds=new Set(m.filter(r=>r.st).map(r=>r.st.id));const pool=studentsOf(K[cls].group).filter(st=>st.active!==false&&inClass(st,cls)&&!usedIds.has(st.id)).sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+  const near=r=>{if(!r.uid)return[];const U=x=>digits(x.uid).replace(/\D/g,'');return pool.filter(x=>{const u=U(x);if(!u)return false;if(u.length===r.uid.length){let d=0;for(let k=0;k<u.length;k++)if(r.uid[k]!=='?'&&r.uid[k]!==u[k])d++;if(d<=2)return true}return r.uid.replace(/\?/g,'').length>=3&&u.endsWith(r.uid.slice(-3))})};
+  const opts=r=>{const nr=near(r);const o=x=>`<option value="${x.id}">${esc(x.name)}${x.uid?' — '+esc(x.uid):''}</option>`;return (nr.length?`<optgroup label="الأقرب للرقم المقروء">${nr.map(o).join('')}</optgroup>`:'')+`<optgroup label="كل طلاب الشعبة">${pool.filter(x=>!nr.includes(x)).map(o).join('')}</optgroup>`};const ok=m.filter(r=>r.st),bad=m.filter(r=>!r.st);
   const cols=assessOf(cls);const tgt=gImp.target||'new';const mx=tgt==='new'?(gImp.max??meta.max??''):(db.assessments[tgt]||{}).max;
   const over=ok.filter(r=>mx!==''&&r.mark>+mx).length;
   el.innerHTML=`<h2 style="margin:0 0 6px;color:var(--navy)">📥 استيراد علامات — ${esc(gImp.file)}</h2>
@@ -995,11 +1008,13 @@ function renderImport(){
     <div class="f"><label>إلى عمود</label><select id="giTgt"><option value="new">عمود جديد</option>${cols.map(a=>`<option value="${a.id}"${a.id===tgt?' selected':''}>${esc(a.name)} (من ${fmtN(+a.max)})</option>`).join('')}</select></div>
     ${tgt==='new'?`<div class="f"><label>اسم العمود</label><input id="giName" value="${esc(gImp.name??meta.column)}"></div><div class="f"><label>العلامة القصوى</label><input id="giMax" type="number" inputmode="decimal" value="${esc(mx)}"></div>`:''}
   </div>
-  <p><span class="tag ok">مطابَق: ${ok.length}</span> ${bad.length?`<span class="tag b">غير مطابَق: ${bad.length}</span>`:''} ${over?`<span class="tag w">أعلى من القصوى: ${over}</span>`:''} <span class="muted">— المطابقة بالرقم الجامعي أولًا ثم بالاسم</span></p>
+  <p><span class="tag ok">مطابَق: ${ok.length}</span> ${bad.length?`<span class="tag b">غير مطابَق: ${bad.length}</span>`:''} ${over?`<span class="tag w">أعلى من القصوى: ${over}</span>`:''} ${ok.some(r=>r.approx)?`<span class="tag w">مطابقة تقريبية: ${ok.filter(r=>r.approx).length} — راجعها</span>`:''} <span class="muted">— المطابقة بالرقم الجامعي أولًا ثم بالاسم</span></p>
   <div class="tbl" style="max-height:340px"><table class="rep"><thead><tr><th>في الملف</th><th>الرقم</th><th>العلامة</th><th>الطالب في البرنامج</th></tr></thead><tbody>${
-    m.map(r=>`<tr class="${r.st?'':'b'}"><td>${esc(r.name)}</td><td>${esc(r.uid)}</td><td class="num">${fmtN(r.mark)}</td><td>${r.st?esc(r.st.name):(r.dup?'⚠ مكرر في الملف':'⚠ لم يُعثر عليه في هذه الشعبة')}</td></tr>`).join('')}</tbody></table></div>
+    m.map((r,i)=>`<tr class="${r.st?'':'b'}"><td>${esc(r.name)}</td><td>${esc(r.uid)}</td><td class="num">${fmtN(r.mark)}</td><td>${r.st?esc(r.st.name)+(r.approx?` <span class="tag w">⚠ ${r.approx} — رقمه: ${esc(r.st.uid)}</span>`:'')+(gImp.manual[i]?` <button class="ghost" data-unpick="${i}" style="min-height:28px;padding:2px 8px">✕</button>`:''):`${r.dup?'⚠ مكرر في الملف — ':'⚠ لم يُعثر عليه — '}<select data-pick="${i}" style="min-width:200px"><option value="">اختر الطالب يدويًا…</option>${opts(r)}</select>`}</td></tr>`).join('')}</tbody></table></div>
   <div class="tools" style="margin-top:10px"><button class="primary" id="giGo" ${ok.length?'':'disabled'}>اعتماد ${ok.length} علامة</button><button class="ghost" id="giCancel">إلغاء</button></div>`;
-  $('giCls').onchange=()=>{gImp.cls=$('giCls').value;gImp.target='new';renderImport()};
+  $('giCls').onchange=()=>{gImp.cls=$('giCls').value;gImp.target='new';gImp.manual={};renderImport()};
+  el.querySelectorAll('[data-pick]').forEach(sl=>sl.onchange=()=>{if(sl.value){gImp.manual[sl.dataset.pick]=sl.value;renderImport()}});
+  el.querySelectorAll('[data-unpick]').forEach(b=>b.onclick=()=>{delete gImp.manual[b.dataset.unpick];renderImport()});
   $('giTgt').onchange=()=>{gImp.target=$('giTgt').value;renderImport()};
   if($('giName'))$('giName').oninput=()=>gImp.name=$('giName').value;
   if($('giMax'))$('giMax').onchange=()=>{gImp.max=toNum($('giMax').value);renderImport()};
@@ -1245,7 +1260,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 setInterval(()=>{if(syncReady()&&document.visibilityState==='visible')doSync()},120000);
 
 /* ================= إصدار البرنامج والتحديث اليدوي ================= */
-const APP_VERSION='19 — 15/11/2026';
+const APP_VERSION='20 — 15/11/2026';
 async function forceUpdate(){
   toast('جارٍ تحديث البرنامج…');
   try{const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.filter(r=>!r.scope.includes('/jcpa/')).map(r=>r.unregister()))}catch(e){}
