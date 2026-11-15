@@ -309,8 +309,11 @@ body.preview-letters .letter{margin:16px auto;box-shadow:0 4px 18px #0005}
       <div class="tools">
         <button class="primary" id="grCsv">تنزيل كشف العلامات Excel</button>
         <button class="ghost" id="grPrint">طباعة / PDF</button>
+        <button id="grImport">📥 استيراد علامات من ملف (المصحّح)</button>
       </div>
+      <input type="file" id="grImpIn" accept=".csv,.json,.txt,text/csv,application/json" class="hidden">
     </div>
+    <div class="card hidden noprint" id="grImp"></div>
     <div class="card" id="grOut"></div>
   </section>
 
@@ -923,6 +926,96 @@ function saveGrade(inp,quiet){
   const cls=a.cls;const st=db.students.find(x=>x.id===stId);const td=inp.closest('tr').querySelector('.tot');if(td&&st)td.textContent=fmtN(gradeRows(cls).tot(st));
 }
 $('grClass').onchange=renderGrades;
+/* ================= استيراد علامات من ملف المصحّح (CSV أو JSON) ================= */
+const digits=x=>String(x??'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+const toNum=x=>{const v=parseFloat(digits(x).replace('٫','.').replace(',','.').trim());return isNaN(v)?null:v};
+function parseCsv(text){
+  text=text.replace(/^﻿/,'');const first=text.split(/\r?\n/)[0]||'';
+  const dl=[',',';','\t'].sort((a,b)=>first.split(b).length-first.split(a).length)[0];
+  const rows=[];let row=[],cell='',q=false;
+  for(let i=0;i<text.length;i++){const ch=text[i];
+    if(q){if(ch==='"'){if(text[i+1]==='"'){cell+='"';i++}else q=false}else cell+=ch}
+    else if(ch==='"')q=true;else if(ch===dl){row.push(cell);cell=''}else if(ch==='\n'){row.push(cell);rows.push(row);row=[];cell=''}else if(ch!=='\r')cell+=ch}
+  if(cell!==''||row.length){row.push(cell);rows.push(row)}
+  return rows.map(r=>r.map(c=>c.trim())).filter(r=>r.some(Boolean));
+}
+function readGradeFile(name,text){
+  const meta={};let list=[];
+  if(/^\s*[\[{]/.test(text)){
+    const d=JSON.parse(text);const arr=Array.isArray(d)?d:(d.marks||d.rows||[]);
+    if(!Array.isArray(d)){meta.cls=d.class||d.cls;meta.course=d.course;meta.section=d.section;meta.column=d.column||d.title;meta.max=toNum(d.max)}
+    list=arr.map(r=>({uid:digits(r.uid||r.id||r['الرقم الجامعي']||'').replace(/\D/g,''),name:String(r.name||r['اسم الطالب']||'').trim(),mark:toNum(r.mark??r.score??r['العلامة'])}));
+  }else{
+    const rows=parseCsv(text);let h=rows[0]||[];
+    // أسطر معلومات اختيارية في أول الملف: المادة/الشعبة/العمود/العلامة القصوى
+    while(rows.length&&rows[0].length<=2&&/^(المادة|الشعبة|العمود|اسم العمود|العلامة القصوى|من|class|column|max)/i.test(rows[0][0]||'')){
+      const [k,v]=rows.shift();if(/المادة/.test(k))meta.course=v;else if(/الشعبة/.test(k))meta.section=v;else if(/العمود|column/i.test(k))meta.column=v;else if(/القصوى|من|max/i.test(k))meta.max=toNum(v);else if(/class/i.test(k))meta.cls=v;h=rows[0]||[]}
+    let iu=h.findIndex(c=>/رقم|uid|id/i.test(c)),inm=h.findIndex(c=>/اسم|name/i.test(c)),im=h.findIndex(c=>/علام|درج|mark|score|grade|نتيج/i.test(c));
+    let body=rows.slice(1);
+    if(im<0){body=rows;const w=rows[0]?rows[0].length:0;iu=w>=3?0:-1;inm=w>=3?1:0;im=w-1}
+    list=body.map(r=>({uid:iu>=0?digits(r[iu]).replace(/\D/g,''):'',name:inm>=0?(r[inm]||''):'',mark:toNum(r[im])}));
+  }
+  list=list.filter(r=>(r.uid||r.name)&&r.mark!==null);
+  if(!meta.column)meta.column=name.replace(/\.[^.]+$/,'');
+  return{meta,list};
+}
+function matchGrades(list,cls){
+  const pool=studentsOf(K[cls].group).filter(st=>inClass(st,cls));const used=new Set();
+  return list.map(r=>{
+    let st=r.uid&&pool.find(x=>digits(x.uid).replace(/\D/g,'')===r.uid);
+    if(!st&&r.name)st=pool.find(x=>nrm(x.name)===nrm(r.name));
+    if(!st&&r.name){const t=nrm(r.name).split(' ');const c=pool.filter(x=>{const u=nrm(x.name).split(' ');return u[0]===t[0]&&u[u.length-1]===t[t.length-1]});if(c.length===1)st=c[0]}
+    if(st&&used.has(st.id))return{...r,st:null,dup:true};if(st)used.add(st.id);return{...r,st};
+  });
+}
+function guessClass(list,meta){
+  if(meta.cls&&K[meta.cls])return meta.cls;
+  let best=null,bestN=-1;
+  CLASSES.forEach(c=>{let n=matchGrades(list,c.id).filter(r=>r.st).length;
+    if(meta.course&&nrm(K[c.id].course).includes(nrm(meta.course)))n+=0.5;if(meta.section&&nrm(clsLabel(c.id)).includes(nrm(meta.section)))n+=0.5;
+    if(n>bestN){bestN=n;best=c.id}});
+  return best;
+}
+let gImp=null;
+$('grImport').onclick=()=>$('grImpIn').click();
+$('grImpIn').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{const {meta,list}=readGradeFile(f.name,await f.text());if(!list.length)return alert('لم أجد في الملف أسماء أو أرقامًا مع علامات.');
+    gImp={meta,list,file:f.name,cls:guessClass(list,meta)};renderImport()}
+  catch(err){alert('تعذّرت قراءة الملف. يجب أن يكون CSV أو JSON كما في دليل المصحّح.')}
+};
+function renderImport(){
+  const el=$('grImp');if(!gImp){el.classList.add('hidden');return}
+  el.classList.remove('hidden');const{meta,list,cls}=gImp;const m=matchGrades(list,cls);const ok=m.filter(r=>r.st),bad=m.filter(r=>!r.st);
+  const cols=assessOf(cls);const tgt=gImp.target||'new';const mx=tgt==='new'?(gImp.max??meta.max??''):(db.assessments[tgt]||{}).max;
+  const over=ok.filter(r=>mx!==''&&r.mark>+mx).length;
+  el.innerHTML=`<h2 style="margin:0 0 6px;color:var(--navy)">📥 استيراد علامات — ${esc(gImp.file)}</h2>
+  <div class="row">
+    <div class="f" style="flex:2"><label>المادة والشعبة</label><select id="giCls">${CLASSES.map(c=>`<option value="${esc(c.id)}"${c.id===cls?' selected':''}>${esc(clsLabel(c.id))}</option>`).join('')}</select></div>
+    <div class="f"><label>إلى عمود</label><select id="giTgt"><option value="new">عمود جديد</option>${cols.map(a=>`<option value="${a.id}"${a.id===tgt?' selected':''}>${esc(a.name)} (من ${fmtN(+a.max)})</option>`).join('')}</select></div>
+    ${tgt==='new'?`<div class="f"><label>اسم العمود</label><input id="giName" value="${esc(gImp.name??meta.column)}"></div><div class="f"><label>العلامة القصوى</label><input id="giMax" type="number" inputmode="decimal" value="${esc(mx)}"></div>`:''}
+  </div>
+  <p><span class="tag ok">مطابَق: ${ok.length}</span> ${bad.length?`<span class="tag b">غير مطابَق: ${bad.length}</span>`:''} ${over?`<span class="tag w">أعلى من القصوى: ${over}</span>`:''} <span class="muted">— المطابقة بالرقم الجامعي أولًا ثم بالاسم</span></p>
+  <div class="tbl" style="max-height:340px"><table class="rep"><thead><tr><th>في الملف</th><th>الرقم</th><th>العلامة</th><th>الطالب في البرنامج</th></tr></thead><tbody>${
+    m.map(r=>`<tr class="${r.st?'':'b'}"><td>${esc(r.name)}</td><td>${esc(r.uid)}</td><td class="num">${fmtN(r.mark)}</td><td>${r.st?esc(r.st.name):(r.dup?'⚠ مكرر في الملف':'⚠ لم يُعثر عليه في هذه الشعبة')}</td></tr>`).join('')}</tbody></table></div>
+  <div class="tools" style="margin-top:10px"><button class="primary" id="giGo" ${ok.length?'':'disabled'}>اعتماد ${ok.length} علامة</button><button class="ghost" id="giCancel">إلغاء</button></div>`;
+  $('giCls').onchange=()=>{gImp.cls=$('giCls').value;gImp.target='new';renderImport()};
+  $('giTgt').onchange=()=>{gImp.target=$('giTgt').value;renderImport()};
+  if($('giName'))$('giName').oninput=()=>gImp.name=$('giName').value;
+  if($('giMax'))$('giMax').onchange=()=>{gImp.max=toNum($('giMax').value);renderImport()};
+  $('giCancel').onclick=()=>{gImp=null;renderImport()};
+  $('giGo').onclick=()=>{
+    const now=new Date().toISOString();let a;
+    if(tgt==='new'){const name=($('giName').value||'').trim(),max=toNum($('giMax').value);if(!name)return toast('اكتب اسم العمود');if(!(max>0))return toast('اكتب العلامة القصوى');
+      const id='as-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);a=db.assessments[id]={id,kind:'assess',cls,name,max,marks:{},createdAt:now,updatedAt:now}}
+    else a=db.assessments[tgt];
+    const lim=+a.max;const skip=ok.filter(r=>r.mark<0||r.mark>lim);
+    if(skip.length&&!confirm(`${skip.length} علامة خارج المدى (0 – ${fmtN(lim)}) لن تُدخل. متابعة؟`))return;
+    let n=0,chg=0;ok.forEach(r=>{if(r.mark<0||r.mark>lim)return;if(a.marks[r.st.id]!==undefined&&a.marks[r.st.id]!==r.mark)chg++;a.marks[r.st.id]=r.mark;n++});
+    a.updatedAt=now;persist();gImp=null;renderImport();$('grClass').value=cls;renderGrades();
+    toast(`تم إدخال ${n} علامة في «${a.name}»${chg?` (تعديل ${chg})`:''}`);
+  };
+}
 function flushGrade(){const el=document.activeElement;if(el&&el.classList&&el.classList.contains('g')){clearTimeout(el._t);saveGrade(el,true)}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushGrade()});
 window.addEventListener('pagehide',flushGrade);
@@ -1152,7 +1245,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 setInterval(()=>{if(syncReady()&&document.visibilityState==='visible')doSync()},120000);
 
 /* ================= إصدار البرنامج والتحديث اليدوي ================= */
-const APP_VERSION='18 — 11/11/2026';
+const APP_VERSION='19 — 15/11/2026';
 async function forceUpdate(){
   toast('جارٍ تحديث البرنامج…');
   try{const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.filter(r=>!r.scope.includes('/jcpa/')).map(r=>r.unregister()))}catch(e){}
