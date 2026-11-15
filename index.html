@@ -250,6 +250,7 @@ body.preview-letters .letter{margin:16px auto;box-shadow:0 4px 18px #0005}
         <button id="rCopy">نسخ تسجيل الحصة السابقة</button>
         <button id="rClear" class="ghost">مسح تسجيل هذه الحصة</button>
       </div>
+      <div id="rUndo" class="banner warn hidden" style="margin:10px 0 0"></div>
     </div>
     <div class="card" id="rList"></div>
     <div class="card">
@@ -613,7 +614,7 @@ function prevSameClass(){
   return daySlots(sl.day).filter(s=>s.cls===sl.cls&&s.period<sl.period).map(s=>db.sessions[sid(cur.date,s.id)]).filter(x=>x&&!x.deleted&&Object.keys(x.marks).length).pop();
 }
 function openRoster(slotId,date){
-  cur={slotId,date};
+  cur={slotId,date};clearTimeout(undoT);$('rUndo').classList.add('hidden');
   ['schedule','reports','grades','students','backup'].forEach(v=>$('v-'+v).classList.add('hidden'));
   $('v-roster').classList.remove('hidden');
   renderRoster();window.scrollTo(0,0);
@@ -657,14 +658,29 @@ function updateCounts(){
   let n={P:0,A:0,S:0,L:0,U:0};list.forEach(st=>n[mk[st.id]||'U']++);
   $('rCounts').innerHTML=`<div class="k-p"><b>${n.P}</b>حاضر</div><div class="k-a"><b>${n.A}</b>غائب</div><div class="k-s"><b>${n.S}</b>مرضي</div><div class="k-l"><b>${n.L}</b>متأخر</div><div class="k-u"><b>${n.U}</b>لم يُحدَّد</div>`;
 }
+/* تراجع عن آخر عملية جماعية (الكل حاضر / نسخ) خلال 30 ثانية */
+let undoT=null;
+function offerUndo(msg,sessionId,before){
+  const el=$('rUndo');clearTimeout(undoT);
+  el.innerHTML=`<span>✓ ${msg}</span><button class="primary" id="rUndoBtn">↶ تراجع</button>`;el.classList.remove('hidden');
+  $('rUndoBtn').onclick=()=>{const s=db.sessions[sessionId];if(s){s.marks=before;s.updatedAt=new Date().toISOString();persist()}el.classList.add('hidden');renderRoster();toast('تم التراجع')};
+  undoT=setTimeout(()=>el.classList.add('hidden'),30000);
+}
 $('rAllP').onclick=()=>{
-  const s=getSession(true);const list=rosterOf(S[cur.slotId].cls);
+  const list=rosterOf(S[cur.slotId].cls);const cur0=getSession(false);const mk=cur0?cur0.marks:{};
+  const n=list.filter(st=>!mk[st.id]).length;if(!n)return toast('كل الطلاب محدَّدون مسبقًا');
+  const sl=S[cur.slotId];
+  if(!confirm(`هل أنت متأكد؟\nسيتم تحديد ${n} طالبًا «حاضر» في محاضرة ${K[sl.cls].course} — ${gShort(K[sl.cls].group)}\n(${DAYS[sl.day]} ${dmy(parseIso(cur.date))} — المحاضرة ${PERIODS[sl.period-1].name}).\nمن حدّدته سابقًا لا يتغيّر.`))return;
+  const s=getSession(true);const before=Object.assign({},s.marks);
   list.forEach(st=>{if(!s.marks[st.id])s.marks[st.id]='P'});
-  s.updatedAt=new Date().toISOString();persist();renderRoster();toast('تم تحديد غير المحدَّدين حاضرين');
+  s.updatedAt=new Date().toISOString();persist();renderRoster();offerUndo(`تم تحديد ${n} طالبًا حاضرين`,s.id,before);
 };
 $('rCopy').onclick=()=>{
-  const prev=prevSameClass();if(!prev)return;const s=getSession(true);
-  s.marks=Object.assign({},prev.marks);s.updatedAt=new Date().toISOString();persist();renderRoster();toast('تم النسخ — عدّل من تغيّر وضعه');
+  const prev=prevSameClass();if(!prev)return;const cur0=getSession(false);
+  const has=cur0&&Object.keys(cur0.marks).length;
+  if(!confirm(has?`هل أنت متأكد؟\nسيُستبدل تسجيل هذه المحاضرة (${Object.keys(cur0.marks).length} طالب) بتسجيل المحاضرة ${PERIODS[prev.period-1].name}.`:`نسخ تسجيل المحاضرة ${PERIODS[prev.period-1].name} إلى هذه المحاضرة؟`))return;
+  const s=getSession(true);const before=Object.assign({},s.marks);
+  s.marks=Object.assign({},prev.marks);s.updatedAt=new Date().toISOString();persist();renderRoster();offerUndo('تم النسخ — عدّل من تغيّر وضعه',s.id,before);
 };
 $('rClear').onclick=()=>{
   const s=getSession(false);if(!s)return;
@@ -1260,7 +1276,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 setInterval(()=>{if(syncReady()&&document.visibilityState==='visible')doSync()},120000);
 
 /* ================= إصدار البرنامج والتحديث اليدوي ================= */
-const APP_VERSION='20 — 15/11/2026';
+const APP_VERSION='21 — 15/11/2026';
 async function forceUpdate(){
   toast('جارٍ تحديث البرنامج…');
   try{const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.filter(r=>!r.scope.includes('/jcpa/')).map(r=>r.unregister()))}catch(e){}
